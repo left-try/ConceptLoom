@@ -1,18 +1,18 @@
 # ConceptLoom: переносимое обучение, граф знаний и оценка качества
 
-Дата: 12 октября 2026. Статус: проект письменной спецификации для review после одобрения общего направления. Реализация и результаты тестирования этим документом не заявляются.
+Дата: 12 октября 2026. Статус: спецификация одобрена пользователем с поправкой «Tracelet пока не подключаем, остальное оставляем». Реализация и результаты тестирования этим документом не заявляются.
 
 Основание: [первичный аудит](../../research/2026-10-12-conceptloom-evolution.md) и [исследование OKF/Obsidian/evals](../../research/2026-10-12-okf-obsidian-evaluation.md).
 
 ## 1. Принятые решения
 
 - Codex/ChatGPT и Claude Code Desktop поддерживаются одновременно через общие данные и отдельные host adapters.
-- Сохраняется Node MCP core; Python добавляется для документных конвертеров и опционального evaluation worker. LangGraph и собственный agent loop отложены.
+- Сохраняется Node MCP core; Python добавляется для документных конвертеров. LangGraph и собственный agent loop отложены.
 - Промпты организуются по OPF, знания — по официальному OKF v0.2 с учебным профилем ConceptLoom.
 - Один набор Markdown знаний читают агент и Obsidian. Найденные книги, статьи, документация и программы курсов становятся узлами со связями к урокам, курсам и понятиям.
 - Полный текст/оригинал источника, структурированное знание, поисковый индекс и evidence учащегося имеют разную ответственность.
 - Расписание включается после явного согласия учащегося с параметрами. Предварительное создание course draft или schedule draft не включает таймер.
-- Promptfoo обеспечивает regression evals; Tracelet — optional evaluation сохраненных артефактов. Работа без этих tools остается возможной.
+- Promptfoo обеспечивает regression evals; локальные JSONL events/results позволяют оценивать сохраненные артефакты. Tracelet исключен из текущего объема: не добавляем его SDK, importer, worker или зависимости. Работа MCP без evaluation tools остается возможной.
 
 ## 2. Цель и критерий результата
 
@@ -191,9 +191,9 @@ Coding execution — отдельный adapter с лимитами и изол�
 
 Capture event содержит eventId, eventType, parent/run IDs, course/lesson/node IDs, host, prompt ID/digest, knowledge profile version, source hashes, доступный вход/выход и timestamp. Сведения о модели, token usage, generation latency сохраняются только при фактической доступности. Tool duration не выдается за model latency. Не сохраняются скрытые рассуждения или приватные критерии в public capture.
 
-Event types: research-completed, roadmap-proposed, lesson-published, source-prepared, knowledge-updated, practice-assessed, state-restored, dispatch-result. Для Tracelet адаптер использует `Event.request_id = eventId`, input/output, context с явно разрешенными evidence snippets, tags и metadata. Стандартные evaluator names/versions и статусы completed/error/skipped сохраняются.
+Event types: research-completed, roadmap-proposed, lesson-published, source-prepared, knowledge-updated, practice-assessed, state-restored, dispatch-result. Сохраняются evaluator IDs/versions и статусы completed/error/skipped. Replay получает только явно разрешенные evidence snippets и committed артефакты; привязка к API внешней tracing библиотеки не требуется.
 
-Локальный outbox не зависит от доступности Tracelet. Optional Python importer оценивает события после их фиксации. Ошибка eval не блокирует сохранение попытки учащегося и не считается pass. Ошибка записи самого outbox становится видимой diagnostic; основной state commit не отменяется и recoverable capture создается из committed артефакта.
+Локальный outbox не зависит от доступности Promptfoo. Явный offline replay оценивает события после их фиксации. Ошибка eval не блокирует сохранение попытки учащегося и не считается pass. Ошибка записи самого outbox становится видимой diagnostic; основной state commit не отменяется и recoverable capture создается из committed артефакта.
 
 ### Suite первого этапа
 
@@ -214,7 +214,7 @@ Event types: research-completed, roadmap-proposed, lesson-published, source-prep
 
 Promptfoo использует OPF-loaded messages через adapter либо recorded outputs. Offline deterministic mode не вызывает providers/judges. Model mode конфигурирует model/credentials/budget отдельно и сравнивает одинаковый case matrix. Judges сначала проверяются на holdout ручных labels; ungraded/error/skipped не включаются в успешные результаты. Нет обещания доказать улучшение обучения по одному judge score.
 
-Tracelet поначалу не запускает shadow candidates автоматически. Sampling/caps, redaction и retention задаются явно. Replay/report использует источник того же content hash; когда он отсутствует, результат inconclusive/error, а не искусственно восстановленный контекст.
+Автоматические shadow candidates не запускаются. Sampling/caps, redaction и retention задаются явно. Replay/report использует источник того же content hash; когда он отсутствует, результат inconclusive/error, а не искусственно восстановленный контекст.
 
 Generated KB validation checks не дают verified по смыслу. Semantic review может создать отдельно атрибутированную verification event только с отмеченными claims/source scope и content hash. User mastery изменяется assessment policy, не eval worker.
 
@@ -222,7 +222,7 @@ Generated KB validation checks не дают verified по смыслу. Semanti
 
 okf-agent knowledge profile — optional implementation backend для indexing/validation/traversal. До его готовности ConceptLoom реализует узкий контракт локально. Требования и приемка вынесены в [upstream предложения](../../research/2026-10-12-okf-obsidian-evaluation.md#конкретные-задачи-для-upstream).
 
-Tracelet current API уже позволяет custom evaluator и capture через Python. JSONL ingestion/reporting улучшит удобство; это не блокирует собственный маленький importer. Педагогические rubrics и typed educational relations остаются в ConceptLoom.
+Исследование Tracelet сохранено как справочный материал; его интеграция и правки upstream отложены по решению пользователя. Педагогические rubrics и typed educational relations остаются в ConceptLoom.
 
 ## 12. Разбиение реализации
 
@@ -230,12 +230,12 @@ Tracelet current API уже позволяет custom evaluator и capture че�
 2. **Knowledge:** shared OKF profile, source manifests/assets/chunks, Markdown index/traversal, Obsidian export, конфликтобезопасные updates, optional Python extraction/OCR.
 3. **Courses:** диагностика/research receipts, roadmap, approvals, ручной dispatch/capsule; затем обе native scheduling integrations.
 4. **Practice/UI:** HTML graph/scenarios/simulations, server assessment bridge, ограниченный coding execution.
-5. **Evaluation expansion:** Promptfoo human-labeled teaching cases и optional Tracelet worker/reporting. Контракт и базовые проверки уже вводятся в Foundation, оценка не откладывается до конца продукта.
+5. **Evaluation expansion:** Promptfoo human-labeled teaching cases, локальные replay/reporting. Контракт и базовые проверки уже вводятся в Foundation, оценка не откладывается до конца продукта.
 
 Для каждого этапа нужен исполняемый план с файлами, contract fixtures и критериями приемки. Общая спецификация задает границы; она не заменяет этот план и не разрешает объявлять завершенными отсутствующие host integrations.
 
 ## 13. Review и реальные ограничения
 
-Согласовано пользователем: оба приложения, общие данные, основной учебный сценарий, граф найденных источников, отложенный LangGraph. Конкретный письменный контракт здесь еще ожидает review.
+Согласовано пользователем: оба приложения, общие данные, основной учебный сценарий, граф найденных источников, отложенный LangGraph; письменная спецификация одобрена с исключением Tracelet. Следующий документ — подробный план реализации; его исполнение отдельно согласуется после review плана.
 
 Установки зависимостей, правки upstream, расписания и запуск paid evals не выполнялись. Методы upstream и CLI flags, перечисленные как пожелания, не являются существующими API. API/app модель для generation evals будет выбрана при настройке; offline contracts не требуют provider credentials.
