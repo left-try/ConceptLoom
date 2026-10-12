@@ -223,76 +223,92 @@ function addUnique(items, value) {
   return value && !items.includes(value) ? [...items, value] : items;
 }
 
+export function checkpointAssessmentPatch(previous, input, assessment, assessedAt = new Date().toISOString()) {
+  const sessionId = safeSessionId(input.sessionId);
+  const currentStep = optionalText(input.currentStep ?? previous.currentStep, "currentStep");
+  if (input.hintUsed !== undefined && typeof input.hintUsed !== "boolean") throw new Error("hintUsed must be a boolean");
+  const hintUsed = input.hintUsed === true;
+  const unaidedSuccess = assessment.outcome === "accurate" && !hintUsed;
+  const format = assessment.format ?? "choice";
+  const dimension = CHECKPOINT_DIMENSIONS[format] ?? "recognition";
+  const attempt = {
+    ...assessment,
+    attemptId: input.attemptId,
+    token: input.token,
+    format,
+    dimension,
+    rubricVersion: assessment.rubricVersion ?? "checkpoint/1",
+    hintUsed,
+    assistance: hintUsed ? "hint" : "none",
+    unaidedSuccess,
+    assessedAt,
+  };
+  const securedConnection = optionalText(input.securedConnection, "securedConnection");
+  const gap = optionalText(input.gap, "gap");
+  const secured = assessment.outcome === "accurate"
+    ? addUnique(previous.secured ?? [], securedConnection)
+    : previous.secured ?? [];
+  const gaps = assessment.outcome === "knowledge-gap"
+    ? addUnique(previous.gaps ?? [], gap ?? currentStep)
+    : previous.gaps ?? [];
+  const evidenceConcept = optionalText(input.evidenceConcept, "evidenceConcept")
+    ?? securedConnection
+    ?? currentStep;
+  const evidence = Object.assign(Object.create(null), previous.evidence ?? {});
+  if (evidenceConcept) {
+    const earlier = evidence[evidenceConcept] ?? {};
+    const dimensionResult = assessment.outcome === "accurate" ? (hintUsed ? "assisted" : "demonstrated") : "needs-work";
+    const consecutiveSuccesses = unaidedSuccess ? (earlier.consecutiveSuccesses ?? 0) + 1
+      : assessment.outcome === "accurate" ? earlier.consecutiveSuccesses ?? 0 : 0;
+    evidence[evidenceConcept] = {
+      ...earlier,
+      attempts: (earlier.attempts ?? 0) + 1,
+      successes: (earlier.successes ?? 0) + (assessment.outcome === "accurate" ? 1 : 0),
+      consecutiveSuccesses,
+      dimensions: { ...(earlier.dimensions ?? {}), [dimension]: dimensionResult },
+      lastFormat: format,
+      lastOutcome: assessment.outcome,
+      lastConfidence: assessment.confidence,
+      lastCalibration: assessment.calibration,
+      hintUsed,
+      transferPassed: earlier.transferPassed === true || (format === "transfer" && unaidedSuccess),
+      lastAttemptAt: assessedAt,
+      lastSuccessfulRetrieval: unaidedSuccess
+        ? assessedAt
+        : earlier.lastSuccessfulRetrieval,
+      reviewAfter: nextReviewDate(consecutiveSuccesses, unaidedSuccess, assessedAt),
+      history: [...(earlier.history ?? []), attempt],
+    };
+  }
+
+  return {
+    sessionId,
+    currentStep,
+    nextStep: requiredText(input.nextStep, "nextStep"),
+    secured,
+    gaps,
+    evidence,
+    lastCheckpoint: attempt,
+  };
+}
+
 export async function recordCheckpointAssessment(baseDirectory, input, assessment) {
   return withWorkspaceLock(baseDirectory, async () => {
     const sessionId = safeSessionId(input.sessionId);
     const { state: previous } = await loadLearningState(baseDirectory, { sessionId });
-    const securedConnection = optionalText(input.securedConnection, "securedConnection");
-    const gap = optionalText(input.gap, "gap");
-    const secured = assessment.outcome === "accurate"
-      ? addUnique(previous.secured ?? [], securedConnection)
-      : previous.secured ?? [];
-    const gaps = assessment.outcome === "knowledge-gap"
-      ? addUnique(previous.gaps ?? [], gap ?? input.currentStep ?? previous.currentStep)
-      : previous.gaps ?? [];
-    const evidenceConcept = optionalText(input.evidenceConcept, "evidenceConcept")
-      ?? securedConnection
-      ?? input.currentStep
-      ?? previous.currentStep;
-    const evidence = { ...(previous.evidence ?? {}) };
-    if (evidenceConcept) {
-      const earlier = evidence[evidenceConcept] ?? {};
-      const format = assessment.format ?? "choice";
-      const dimension = CHECKPOINT_DIMENSIONS[format] ?? "recognition";
-      const dimensionResult = assessment.outcome === "accurate" ? "demonstrated" : "needs-work";
-      const consecutiveSuccesses = assessment.outcome === "accurate" ? (earlier.consecutiveSuccesses ?? 0) + 1 : 0;
-      evidence[evidenceConcept] = {
-        ...earlier,
-        attempts: (earlier.attempts ?? 0) + 1,
-        successes: (earlier.successes ?? 0) + (assessment.outcome === "accurate" ? 1 : 0),
-        consecutiveSuccesses,
-        dimensions: { ...(earlier.dimensions ?? {}), [dimension]: dimensionResult },
-        lastFormat: format,
-        lastOutcome: assessment.outcome,
-        lastConfidence: assessment.confidence,
-        lastCalibration: assessment.calibration,
-        hintUsed: input.hintUsed === true,
-        transferPassed: earlier.transferPassed === true || (format === "transfer" && assessment.outcome === "accurate"),
-        lastAttemptAt: new Date().toISOString(),
-        lastSuccessfulRetrieval: assessment.outcome === "accurate"
-          ? new Date().toISOString()
-          : earlier.lastSuccessfulRetrieval,
-        reviewAfter: nextReviewDate(consecutiveSuccesses, assessment.outcome),
-      };
-    }
-
     return saveLearningState(baseDirectory, {
-      sessionId,
-      expectedRevision: input.expectedRevision ?? previous.revision,
-      currentStep: input.currentStep ?? previous.currentStep,
-      nextStep: requiredText(input.nextStep, "nextStep"),
-      secured,
-      gaps,
-      evidence,
-      lastCheckpoint: {
-        outcome: assessment.outcome,
-        selected: assessment.selected,
-        response: assessment.response,
-        format: assessment.format ?? "choice",
-        confidence: assessment.confidence,
-        calibration: assessment.calibration,
-        assessedAt: new Date().toISOString(),
-      },
+      ...checkpointAssessmentPatch(previous, input, assessment),
+      expectedRevision: Object.hasOwn(input, "expectedRevision") ? input.expectedRevision : previous.revision,
     });
   });
 }
 
-function nextReviewDate(consecutiveSuccesses, outcome) {
+function nextReviewDate(consecutiveSuccesses, unaidedSuccess, assessedAt) {
   const intervals = [1, 3, 7, 14, 30];
-  const days = outcome === "accurate"
+  const days = unaidedSuccess
     ? intervals[Math.min(Math.max(consecutiveSuccesses - 1, 0), intervals.length - 1)]
     : 1;
-  const date = new Date();
+  const date = new Date(assessedAt);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString();
 }

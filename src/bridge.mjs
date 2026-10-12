@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import readline from "node:readline";
-import { composeCheckpoint, assessCheckpoint } from "./checkpoints.mjs";
+import { composeCheckpoint } from "./checkpoints.mjs";
+import { assessAndPersist } from "./assessment-service.mjs";
 import { beginNotebook, addNotebookEntry } from "./notebook.mjs";
 import { prepareMermaid, prepareTextDiagram } from "./diagrams.mjs";
-import { listDueReviews, loadLearningState, recordCheckpointAssessment, saveLearningState } from "./progress.mjs";
+import { listDueReviews, loadLearningState, saveLearningState } from "./progress.mjs";
 import { resolveWorkspace } from "./workspace.mjs";
 import { assertRecovery, recoverTransactions } from "./storage/transactions.mjs";
 
@@ -35,6 +36,7 @@ const toolCatalog = [
         expected: { oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }] },
         criteria: { type: "array", items: { type: "string" }, description: "Private grading criteria required for non-choice formats." },
         rationale: { type: "string" },
+        rubricVersion: { type: "string", description: "Version of the private grading rubric, stored with each attempt." },
         multiple: { type: "boolean", default: false },
         mix: { type: "boolean", default: true },
       },
@@ -48,6 +50,8 @@ const toolCatalog = [
       required: ["token", "sessionId", "nextStep"],
       properties: {
         token: { type: "string" },
+        attemptId: { type: "string", description: "Stable attempt ID for reliable retries. Reuse it with the same input; legacy calls receive a generated ID." },
+        expectedRevision: { type: ["integer", "null"], minimum: 0 },
         selected: { oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }] },
         response: { type: "string", description: "Learner's response for a non-choice checkpoint, or __gap__." },
         verdict: { enum: ["accurate", "needs-repair", "knowledge-gap"], description: "Rubric-based outcome for a non-choice response." },
@@ -172,9 +176,8 @@ async function invokeTool(name, args) {
   switch (name) {
     case "loom_frame_checkpoint": return textResult(composeCheckpoint(args));
     case "loom_assess_checkpoint": {
-      const assessment = assessCheckpoint(args);
-      const learningState = await recordCheckpointAssessment(workspace, args, assessment);
-      return textResult({ ...assessment, learningState });
+      const { assessment, learningState, attemptId } = await assessAndPersist(workspace, args);
+      return textResult({ ...assessment, learningState, attemptId });
     }
     case "loom_start_notebook": {
       const path = await beginNotebook(workspace, args);

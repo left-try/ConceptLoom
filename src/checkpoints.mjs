@@ -30,6 +30,7 @@ export function composeCheckpoint(input, random = Math.random) {
   discardExpired();
   const prompt = cleanText(input.prompt, "prompt");
   const rationale = cleanText(input.rationale, "rationale");
+  const rubricVersion = input.rubricVersion === undefined ? "checkpoint/1" : cleanText(input.rubricVersion, "rubricVersion");
   const format = input.format === undefined ? "choice" : cleanText(input.format, "format");
   if (!FORMATS.has(format)) throw new Error(`format must be one of: ${[...FORMATS].join(", ")}`);
 
@@ -39,7 +40,7 @@ export function composeCheckpoint(input, random = Math.random) {
       throw new Error("criteria must contain at least one entry for an open checkpoint");
     }
     const criteria = input.criteria.map((entry, index) => cleanText(entry, `criteria[${index}]`));
-    activeCards.set(token, { createdAt: Date.now(), prompt, rationale, format, criteria });
+    activeCards.set(token, { createdAt: Date.now(), prompt, rationale, format, criteria, rubricVersion });
     return {
       token,
       prompt,
@@ -83,6 +84,7 @@ export function composeCheckpoint(input, random = Math.random) {
     expectedSet,
     multiple,
     format,
+    rubricVersion,
   });
 
   return {
@@ -90,7 +92,7 @@ export function composeCheckpoint(input, random = Math.random) {
     prompt,
     format,
     multiple,
-    choices: arranged,
+    choices: arranged.map(choice => ({ ...choice })),
     escapeChoice: { key: "__gap__", label: "I do not know yet" },
     instructions: multiple
       ? "Select every fitting key, or choose __gap__."
@@ -98,12 +100,11 @@ export function composeCheckpoint(input, random = Math.random) {
   };
 }
 
-export function assessCheckpoint(input) {
+export function evaluateCheckpoint(input) {
   discardExpired();
   const token = cleanText(input.token, "token");
   const card = activeCards.get(token);
   if (!card) throw new Error("checkpoint token is unknown or expired");
-  activeCards.delete(token);
 
   const confidence = input.confidence === undefined ? undefined : Number(input.confidence);
   if (confidence !== undefined && (!Number.isInteger(confidence) || confidence < 0 || confidence > 100)) {
@@ -120,10 +121,12 @@ export function assessCheckpoint(input) {
     const accurate = verdict === "accurate";
     return {
       format: card.format,
+      prompt: card.prompt,
+      rubricVersion: card.rubricVersion,
       outcome: verdict,
       accurate,
       response,
-      criteria: card.criteria,
+      criteria: [...card.criteria],
       rationale: card.rationale,
       confidence,
       calibration: describeCalibration(accurate, confidence),
@@ -132,7 +135,7 @@ export function assessCheckpoint(input) {
   }
 
   const submitted = Array.isArray(input.selected) ? input.selected : [input.selected];
-  const selected = submitted.filter((value) => typeof value === "string" && value.trim()).map((value) => value.trim());
+  const selected = submitted.map(value => cleanText(value, "selected key"));
   const admittedGap = selected.includes("__gap__");
   if (admittedGap && selected.length !== 1) throw new Error("__gap__ cannot be combined with another choice");
   if (!admittedGap && selected.length === 0) throw new Error("selected must contain an answer or __gap__");
@@ -150,6 +153,8 @@ export function assessCheckpoint(input) {
 
   return {
     format: card.format,
+    prompt: card.prompt,
+    rubricVersion: card.rubricVersion,
     outcome: admittedGap ? "knowledge-gap" : accurate ? "accurate" : "needs-repair",
     accurate,
     selected,
@@ -159,6 +164,16 @@ export function assessCheckpoint(input) {
     calibration: describeCalibration(accurate, confidence),
     note: typeof input.note === "string" && input.note.trim() ? input.note.trim() : undefined,
   };
+}
+
+export function consumeCheckpoint(token) {
+  activeCards.delete(cleanText(token, "token"));
+}
+
+export function assessCheckpoint(input) {
+  const assessment = evaluateCheckpoint(input);
+  consumeCheckpoint(input.token);
+  return assessment;
 }
 
 function describeCalibration(accurate, confidence) {
