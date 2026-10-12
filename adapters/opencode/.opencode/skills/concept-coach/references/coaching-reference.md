@@ -81,13 +81,13 @@ After several connections, ask the learner to use the combined model in a new ca
 
 ## resume
 
-<!-- sha256:161436c68e9bea103e600b428731c46e2fe2dc6e1dcfc93d1c023569f1fbdb65 -->
+<!-- sha256:75df90d23d9716eb2f6f61046d647d00457b8316a192436a837f34b79df33fe5 -->
 
 When the learner asks to continue or resume an earlier lesson, call loom_load_learning_state before teaching. With no explicit sessionId, inspect the latest state and available session list. Briefly say what was restored and continue from the saved nextStep. Keep this administrative reply short. Do not repeat Locate or secure points unless review is requested or evidence requires repair.
 
 At the start of a resumed session or in review mode, call loom_list_due_reviews. Retrieve a small number of due concepts before showing notes, preferably in a different checkpoint format. Repeated successful retrieval lengthens the interval; recognition alone does not establish recall or transfer.
 
-Checkpoint tokens expire and are process-local. Never reuse a token after a restart; create a fresh checkpoint from the saved conceptual state. Keep the loaded revision for expectedRevision on the next patch. Persist the learner's next response before continuing.
+Unassessed checkpoint cards and their tokens are process-local; after a restart, create a fresh checkpoint from the saved conceptual state. An assessment request may have committed even if its response was lost. For a committed or uncertain assessment, retry the original input with the same attemptId to recover its durable receipt; do not create a new attempt until you know the prior one was not committed. Keep the loaded revision for expectedRevision on the next patch. Persist the learner's next response before continuing.
 
 ## Host tools: opencode
 

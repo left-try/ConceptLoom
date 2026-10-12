@@ -17,6 +17,13 @@ export function resolveNotebookPath(baseDirectory, requested = "learning-notes.m
   return ensureInside(root, destination);
 }
 
+async function resolveNotebookFile(baseDirectory, requested) {
+  const root = resolve(baseDirectory);
+  const destination = resolveNotebookPath(root, requested);
+  const path = relative(root, destination);
+  return { destination: await resolveContainedPath(root, path), path };
+}
+
 function blockFor(kind, body, title) {
   const text = String(body ?? "").trim();
   if (!text) throw new Error("body must be non-empty");
@@ -38,8 +45,7 @@ function blockFor(kind, body, title) {
 export async function beginNotebook(baseDirectory, input) {
   return withWorkspaceLock(baseDirectory, async () => {
     assertRecovery(await recoverTransactions(baseDirectory));
-    const path = input.path ?? "learning-notes.md";
-    const destination = await resolveContainedPath(baseDirectory, path);
+    const { destination, path } = await resolveNotebookFile(baseDirectory, input.path ?? "learning-notes.md");
     const heading = typeof input.title === "string" && input.title.trim() ? input.title.trim() : "Learning session";
     const preamble = `# ${heading}\n\n_Created by Concept Loom on ${new Date().toISOString()}_\n`;
     const existing = await readOptional(destination);
@@ -53,8 +59,7 @@ export async function beginNotebook(baseDirectory, input) {
 export async function addNotebookEntry(baseDirectory, input) {
   return withWorkspaceLock(baseDirectory, async () => {
     assertRecovery(await recoverTransactions(baseDirectory));
-    const path = input.path ?? "learning-notes.md";
-    const destination = await resolveContainedPath(baseDirectory, path);
+    const { destination, path } = await resolveNotebookFile(baseDirectory, input.path ?? "learning-notes.md");
     const kind = String(input.kind ?? "");
     if (!permittedKinds.has(kind)) throw new Error(`kind must be one of: ${[...permittedKinds].join(", ")}`);
     const existing = await readOptional(destination);

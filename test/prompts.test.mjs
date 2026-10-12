@@ -129,6 +129,14 @@ test('persistence guidance matches F1 replacement semantics for supplied evidenc
   assert.doesNotMatch(text, /evidence entries merge by concept/i);
 });
 
+test('resume guidance retries durable assessment attempts after restart', async () => {
+  const { loadPrompt } = await loader();
+  const text = (await loadPrompt('resume', { context: 'continue lesson' })).messages.map(m => m.content).join('\n');
+  assert.match(text, /retry.*original input.*attemptId/i);
+  assert.match(text, /committed.*receipt/i);
+  assert.match(text, /unassessed.*process-local/i);
+});
+
 async function referenceFixture(t) {
   const fixture = await mkdtemp(join(tmpdir(), 'loom-prompts-'));
   t.after(() => rm(fixture, { recursive: true, force: true }));

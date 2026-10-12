@@ -13,7 +13,7 @@ When the learner asks to continue or resume an earlier lesson, call loom_load_le
 
 At the start of a resumed session or in review mode, call loom_list_due_reviews. Retrieve a small number of due concepts before showing notes, preferably in a different checkpoint format. Repeated successful retrieval lengthens the interval; recognition alone does not establish recall or transfer.
 
-Checkpoint tokens expire and are process-local. Never reuse a token after a restart; create a fresh checkpoint from the saved conceptual state. Keep the loaded revision for expectedRevision on the next patch. Persist the learner's next response before continuing.
+Unassessed checkpoint cards and their tokens are process-local; after a restart, create a fresh checkpoint from the saved conceptual state. An assessment request may have committed even if its response was lost. For a committed or uncertain assessment, retry the original input with the same attemptId to recover its durable receipt; do not create a new attempt until you know the prior one was not committed. Keep the loaded revision for expectedRevision on the next patch. Persist the learner's next response before continuing.
 
 ## user
 Resume request and any known session identity:
