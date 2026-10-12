@@ -39,7 +39,7 @@ function templateParts(content, declarations) {
 /** OPF 0.2 metadata plus shared OPF message/input syntax; no provider settings. */
 export function parsePrompt(source) {
   const text = normalized(source);
-  const frontmatter = text.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
+  const frontmatter = text.match(/^\uFEFF?---\n([\s\S]*?)\n---(?:\n|$)/);
   if (!frontmatter) throw new Error('OPF requires opening and closing YAML frontmatter separators');
   const metadata = yaml(frontmatter[1], 'OPF frontmatter');
   if (!validateMetadata(metadata)) throw new Error(`invalid OPF 0.2 metadata: ${JSON.stringify(validateMetadata.errors)}`);

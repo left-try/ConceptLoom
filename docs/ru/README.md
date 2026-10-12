@@ -32,9 +32,10 @@ Concept Loom превращает coding-агента в структуриро�
 
 ## Быстрый запуск с Codex
 
-Нужны Node.js 20+ и Codex CLI.
+Нужны Node.js 20+, npm и Codex CLI. Начните из клонированного репозитория Concept Loom.
 
 ```bash
+npm ci --ignore-scripts
 node scripts/setup.mjs codex --target /путь/к/учебной-папке
 cd /путь/к/учебной-папке
 codex
@@ -42,7 +43,9 @@ codex
 
 Установщик сам вычисляет путь и регистрирует MCP-сервер в Codex. Флаг `--skip-mcp` позволяет установить только файлы workspace, не меняя глобальную MCP-конфигурацию.
 
-После обновления Concept Loom обновите уже установленный skill командой `node scripts/setup.mjs codex --target /путь/к/учебной-папке --refresh`.
+Перед установкой выполните `npm ci --ignore-scripts` из клонированного репозитория Concept Loom. Для OPF-каталога и проверки инструкций при установке используются npm-зависимости `yaml` и `ajv`, версии которых сохранены в lockfile.
+
+После обновления Concept Loom выполните `npm ci --ignore-scripts` из его репозитория и обновите уже установленный skill командой `node scripts/setup.mjs codex --target /путь/к/учебной-папке --refresh`.
 
 Первый запрос:
 

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -51,6 +52,20 @@ test('CRLF and bare CR keep digest and message content', async () => {
     assert.deepEqual(variant.messages, parsePrompt(lf).messages);
   }
   assert.notEqual(parsePrompt(lf + '\n').digest, parsePrompt(lf).digest);
+});
+
+test('UTF-8 BOM parses while the digest includes the complete normalized source', async () => {
+  const { parsePrompt, renderPrompt } = await loader();
+  const lf = '\uFEFF' + source('## user\n{{ context }}\n');
+  const expectedDigest = `sha256:${createHash('sha256').update(lf, 'utf8').digest('hex')}`;
+  for (const text of [lf, lf.replaceAll('\n', '\r\n'), lf.replaceAll('\n', '\r')]) {
+    const parsed = parsePrompt(text);
+    assert.equal(parsed.id, 'sample');
+    assert.equal(parsed.digest, expectedDigest);
+    assert.deepEqual(renderPrompt(parsed, { context: 'The BOM is source metadata, not a message.' }).messages,
+      [{ role: 'user', content: 'The BOM is source metadata, not a message.' }]);
+  }
+  assert.notEqual(parsePrompt(lf).digest, parsePrompt(lf.slice(1)).digest);
 });
 
 test('official OPF fixtures preserve fences, escaped headings and literal inputs', async () => {

@@ -41,9 +41,12 @@ Russian documentation starts at [docs/ru/README.md](docs/ru/README.md).
 
 ## Quick start with Codex
 
-Requirements: Node.js 20+ and Codex CLI.
+Requirements: Node.js 20+, npm and Codex CLI. Run these commands from the cloned Concept Loom repository:
 
 ```bash
+# Install the locked dependencies before running setup
+npm ci --ignore-scripts
+
 # Install the adapter and register its MCP server automatically
 node scripts/setup.mjs codex --target /path/to/learning-workspace
 
@@ -54,7 +57,7 @@ codex
 
 Use `--skip-mcp` only if you want to install the workspace files without changing the global Codex MCP configuration.
 
-After updating Concept Loom, refresh an already installed skill with `node scripts/setup.mjs codex --target /path/to/learning-workspace --refresh`.
+After updating Concept Loom, run `npm ci --ignore-scripts` in its repository, then refresh an already installed skill with `node scripts/setup.mjs codex --target /path/to/learning-workspace --refresh`.
 
 Then ask:
 
@@ -64,6 +67,8 @@ to choose the right isolation level for a small web application.
 ```
 
 ## Other clients
+
+Install dependencies with `npm ci --ignore-scripts` in the Concept Loom repository before running any adapter setup:
 
 ```bash
 node scripts/setup.mjs claude-code --target /path/to/learning-workspace
@@ -81,13 +86,15 @@ DeepSeek Harness is currently a developer preview and may introduce breaking con
 
 The installer refuses to overwrite existing configuration. Merge a generated Concept Loom file manually when guidance or MCP configuration already exists.
 
-Concept Loom has no runtime npm dependencies. Small structures are displayed as monospace text diagrams; larger relationship maps are returned as Mermaid blocks that remain readable in the terminal and render in compatible Markdown viewers.
+Concept Loom uses `yaml` and `ajv` to parse and validate its OPF prompt catalog and check generated references during setup. Their versions are recorded in the lockfile. Small structures are displayed as monospace text diagrams; larger relationship maps are returned as Mermaid blocks that remain readable in the terminal and render in compatible Markdown viewers.
 
 ## Verify the project
 
 ```bash
+npm ci --ignore-scripts
 npm test
 npm run check
+npm run check:prompts
 ```
 
 ## License

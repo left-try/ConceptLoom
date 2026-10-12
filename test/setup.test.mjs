@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, stat } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -7,6 +8,37 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+test("documented quick start installs locked dependencies in a clean checkout before host setup", async t => {
+  const checkout = await mkdtemp(join(tmpdir(), "loom-clean-install-"));
+  t.after(() => rm(checkout, { recursive: true, force: true }));
+  for (const path of ["package.json", "package-lock.json", "README.md", "scripts", "src", "prompts", "shared", "adapters"]) {
+    await cp(join(projectRoot, path), join(checkout, path), { recursive: true });
+  }
+  await assert.rejects(stat(join(checkout, "node_modules")), { code: "ENOENT" });
+  const readme = (await readFile(join(checkout, "README.md"), "utf8")).replace(/\r\n|\r/g, "\n");
+  const quickStart = readme.split("## Quick start with Codex")[1].split("## Other clients")[0];
+  const commands = quickStart.match(/```bash\n([\s\S]*?)```/)[1].split("\n");
+  const npmCli = process.env.npm_execpath ?? join(dirname(process.execPath), "node_modules/npm/bin/npm-cli.js");
+  for (const command of commands.filter(line => /^npm ci(?:\s|$)/.test(line))) {
+    const result = spawnSync(process.execPath, [npmCli, ...command.split(/\s+/).slice(1)], {
+      cwd: checkout, encoding: "utf8", env: { ...process.env, npm_config_offline: "true", npm_config_audit: "false", npm_config_fund: "false" },
+    });
+    assert.equal(result.status, 0, result.stderr);
+  }
+  // A nested fixture can otherwise accidentally resolve the parent checkout's dependencies.
+  const requireFromCheckout = createRequire(join(checkout, "package.json"));
+  for (const dependency of ["yaml", "ajv"]) {
+    assert.ok(requireFromCheckout.resolve(dependency).startsWith(join(checkout, "node_modules")), `${dependency} was not installed by the documented quick start`);
+  }
+  for (const [host, hidden] of [["codex", ".codex"], ["claude-code", ".claude"], ["opencode", ".opencode"], ["deepseek-harness", ".dsh"]]) {
+    const target = join(checkout, `learning-${host}`);
+    const result = spawnSync(process.execPath, [join(checkout, "scripts/setup.mjs"), host, "--target", target, "--skip-mcp"], { cwd: checkout, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    const installed = await readFile(join(target, hidden, "skills/concept-coach/references/coaching-reference.md"), "utf8");
+    assert.equal(installed, await readFile(join(checkout, "adapters", host, hidden, "skills/concept-coach/references/coaching-reference.md"), "utf8"));
+  }
+});
 
 test("Codex installer registers the explicit workspace", async () => {
   const target = await mkdtemp(join(tmpdir(), "concept-loom-codex-"));
