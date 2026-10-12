@@ -8,7 +8,9 @@
 
 **Tech Stack:** Node >=20, node:test, `yaml` 2, Ajv Draft 2020-12; exact installed versions фиксируются lockfile при реализации.
 
-**Spec:** [Разделы 3, 7, 9, 10](../specs/2026-10-12-conceptloom-learning-platform-design.md); [общие constraints/contracts](2026-10-12-conceptloom-implementation.md).
+**Spec:** [Foundation phase spec](../specs/2026-10-12-conceptloom-foundation.md); [platform decisions](../specs/2026-10-12-conceptloom-learning-platform-design.md); [shared constraints/contracts](2026-10-12-conceptloom-implementation.md).
+
+**Test plan:** [Foundation test plan](2026-10-12-conceptloom-foundation-test-plan.md). Use its SDD/TDD cycle and acceptance matrix alongside the task-level red/green steps below.
 
 ## Global Constraints
 
@@ -26,7 +28,7 @@
 4. Prompt input с role delimiter: F3 `input cannot add messages`.
 5. Mermaid labels с кавычками/backticks/HTML: F4 `labels remain escaped text`.
 
-### F1: Workspace и journaled storage
+### Task 1: F1 — Workspace и journaled storage
 
 **Files:** Create `src/workspace.mjs`, `src/storage/transactions.mjs`, `src/storage/paths.mjs`, `test/storage.test.mjs`, `test/workspace.test.mjs`; Modify `src/progress.mjs`, `src/notebook.mjs`, `src/bridge.mjs`, `scripts/setup.mjs`, `test/progress.test.mjs`, `test/setup.test.mjs`.
 
@@ -38,7 +40,7 @@
 - [ ] **4. Run:** same command and existing `npm test`; expect pass. Verify a fresh process restores migrated snapshot and backup exists. Update `package.json` check script to discover all JS entry points instead of a fixed list.
 - [ ] **5. Commit:** listed source/test/setup files, message `fix: preserve learning state across conflicts and restarts`.
 
-### F2: Checkpoint commit и полноценный evidence ledger
+### Task 2: F2 — Checkpoint commit и полноценный evidence ledger
 
 **Files:** Create `src/assessment-service.mjs`, `test/assessment-service.test.mjs`; Modify `src/checkpoints.mjs`, `src/progress.mjs`, `src/bridge.mjs`, `test/checkpoints.test.mjs`.
 
@@ -50,7 +52,7 @@
 - [ ] **4. Run:** command from step 2; expect pass including injected persistence error and concurrent calls.
 - [ ] **5. Commit:** touched modules/tests, message `fix: commit checkpoint evidence before consuming cards`.
 
-### F3: OPF catalog и полные структурированные объяснения
+### Task 3: F3 — OPF catalog и полные структурированные объяснения
 
 **Files:** Create `prompts/registry.yaml`, `prompts/{diagnose,research-course,plan-course,teach-lesson,practice,resume}.opf.md`, `src/prompts/loader.mjs`, `scripts/build-prompts.mjs`, `test/prompts.test.mjs`; Modify `shared/coaching-reference.md`, four `adapters/*/<host-hidden-dir>/skills/concept-coach/references/coaching-reference.md`, Codex/Claude SKILL.md, `scripts/setup.mjs`, `package.json`, `package-lock.json`.
 
@@ -62,7 +64,7 @@
 - [ ] **4. Run:** `node scripts/build-prompts.mjs --check` and tests; expect generated copies identical, useful host distinctions retained. Setup fixture must install generated reference successfully.
 - [ ] **5. Commit:** catalog, loader, generated references and setup files, message `feat: organize coaching prompts with OPF`.
 
-### F4: Semantic Mermaid и transport registry
+### Task 4: F4 — Semantic Mermaid и transport registry
 
 **Files:** Create `src/tool-registry.mjs`, `src/diagram-tools.mjs`, `test/bridge.test.mjs`; Modify `src/bridge.mjs`, `src/diagrams.mjs`, `test/diagrams.test.mjs`.
 
@@ -74,7 +76,7 @@
 - [ ] **4. Run:** command from step 2; expect pass and both source/semantic inputs validate.
 - [ ] **5. Commit:** modules/tests, message `feat: render themed semantic learning diagrams`.
 
-### F5: Локальные capture contracts и первые eval fixtures
+### Task 5: F5 — Локальные capture contracts и первые eval fixtures
 
 **Files:** Create `schemas/capture-event.schema.json`, `schemas/eval-result.schema.json`, `src/evaluation/capture.mjs`, `test/capture.test.mjs`, `test/fixtures/contracts/`; Modify `src/assessment-service.mjs`, `src/tool-registry.mjs`.
 
