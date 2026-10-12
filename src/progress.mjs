@@ -1,4 +1,5 @@
 import { readFile, readdir } from "node:fs/promises";
+import { publicCheckpointAssessment } from "./checkpoints.mjs";
 import { resolveContainedPath } from "./storage/paths.mjs";
 import { assertRecovery, commitTransaction, hashBytes, recoverTransactions, withWorkspaceLock } from "./storage/transactions.mjs";
 
@@ -232,7 +233,7 @@ export function checkpointAssessmentPatch(previous, input, assessment, assessedA
   const format = assessment.format ?? "choice";
   const dimension = CHECKPOINT_DIMENSIONS[format] ?? "recognition";
   const attempt = {
-    ...assessment,
+    ...publicCheckpointAssessment(assessment),
     attemptId: input.attemptId,
     token: input.token,
     format,

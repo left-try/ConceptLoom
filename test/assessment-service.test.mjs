@@ -33,6 +33,11 @@ function request(publicCard, overrides = {}) {
 }
 async function state(root) { return (await loadLearningState(root, { sessionId: "lesson" })).state; }
 async function receipt(root, id = "attempt-1") { return JSON.parse(await fs.readFile(join(root, `.concept-loom/assessments/attempts/${id}.json`), "utf8")); }
+function assertPublic(value) {
+  if (!value || typeof value !== "object") return;
+  for (const key of ["expected", "rationale", "criteria"]) assert.equal(Object.hasOwn(value, key), false, `private ${key} must stay in the receipt`);
+  for (const nested of Object.values(value)) assertPublic(nested);
+}
 function child(source, args) {
   return new Promise((resolve, reject) => {
     const runner = spawn(process.execPath, ["--input-type=module", "-e", source, ...args]);
@@ -44,6 +49,25 @@ function child(source, args) {
   });
 }
 test.beforeEach(() => resetCheckpointsForTests());
+
+for (const format of ["choice", "free-recall"]) {
+  test(`ordinary session and service response omit private ${format} grading details`, async t => {
+    const assess = await service(), root = await fixture(t);
+    const input = request(card(format), format === "choice" ? {} : { selected: undefined, response: "All writes or none", verdict: "accurate" });
+    const result = await assess(root, input);
+    const disk = JSON.parse(await fs.readFile(join(root, ".concept-loom/sessions/lesson.json"), "utf8"));
+    assertPublic(disk);
+    assertPublic(result);
+    assertPublic(await assess(root, input));
+    const privateReceipt = await receipt(root);
+    assert.equal(privateReceipt.assessment.rationale, "Atomicity commits all writes together.");
+    if (format === "choice") assert.deepEqual(privateReceipt.assessment.expected, ["a"]);
+    else assert.deepEqual(privateReceipt.assessment.criteria, ["All writes succeed together"]);
+    assert.equal(disk.evidence.Atomicity.history[0].rubricVersion, "atomicity/2");
+    assert.equal(disk.evidence.Atomicity.history[0].confidence, 80);
+    assert.equal(disk.evidence.Atomicity.history[0].outcome, "accurate");
+  });
+}
 
 test("failed commit keeps card usable", async t => {
   const assess = await service(), root = await fixture(t), input = request(card());
@@ -197,12 +221,14 @@ test("recovered commit cannot assess the same token under a new attempt ID", asy
 
 test("legacy recorder uses the same assistance policy", async t => {
   const root = await fixture(t);
-  const result = await recordCheckpointAssessment(root, { sessionId: "lesson", evidenceConcept: "Atomicity", nextStep: "Review", hintUsed: true }, { format: "free-recall", outcome: "accurate", response: "All writes" });
+  const result = await recordCheckpointAssessment(root, { sessionId: "lesson", evidenceConcept: "Atomicity", nextStep: "Review", hintUsed: true }, { format: "free-recall", outcome: "accurate", response: "All writes", criteria: ["All writes together"], rationale: "Atomicity" });
   const evidence = result.evidence.Atomicity;
   assert.equal(evidence.consecutiveSuccesses, 0);
   assert.equal(evidence.lastSuccessfulRetrieval, undefined);
   assert.equal(evidence.dimensions.recall, "assisted");
   assert.equal(evidence.history.length, 1);
+  assertPublic(result);
+  assertPublic(await state(root));
 });
 
 test("bridge commits through the service before consuming a card", async t => {
@@ -234,6 +260,8 @@ test("bridge commits through the service before consuming a card", async t => {
   const assessed = await call("loom_assess_checkpoint", input);
   assert.equal(assessed.isError, undefined, JSON.stringify(assessed));
   assert.equal(assessed.structuredContent.attemptId, "attempt-1");
+  assertPublic(assessed.structuredContent);
+  assertPublic(JSON.parse(assessed.content[0].text));
   assert.deepEqual(await call("loom_assess_checkpoint", input), assessed);
   assert.equal((await state(root)).evidence.Atomicity.attempts, 1);
 });

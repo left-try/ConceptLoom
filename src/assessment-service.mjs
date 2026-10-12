@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { consumeCheckpoint, evaluateCheckpoint } from "./checkpoints.mjs";
+import { consumeCheckpoint, evaluateCheckpoint, publicCheckpointAssessment } from "./checkpoints.mjs";
 import { checkpointAssessmentPatch, loadLearningState } from "./progress.mjs";
 import { resolveContainedPath } from "./storage/paths.mjs";
 import { assertRecovery, commitTransaction, hashBytes, recoverTransactions, withWorkspaceLock } from "./storage/transactions.mjs";
@@ -61,7 +61,7 @@ export async function assessAndPersist(root, input) {
         throw Object.assign(new Error("ATTEMPT_CONFLICT: attemptId was already used with different input"), { code: "ATTEMPT_CONFLICT" });
       }
       consumeCheckpoint(token);
-      return { assessment: existing.assessment, learningState: existing.learningState, attemptId };
+      return { assessment: publicCheckpointAssessment(existing.assessment), learningState: existing.learningState, attemptId };
     }
 
     // A different tool may have recovered an interrupted commit while this
@@ -96,6 +96,6 @@ export async function assessAndPersist(root, input) {
       events: [{ eventId: attemptId, type: "checkpoint-assessed", sessionId, token, assessedAt }],
     });
     consumeCheckpoint(token);
-    return { assessment: receipt.assessment, learningState: receipt.learningState, attemptId };
+    return { assessment: publicCheckpointAssessment(receipt.assessment), learningState: receipt.learningState, attemptId };
   }));
 }

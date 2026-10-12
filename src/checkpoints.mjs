@@ -170,6 +170,12 @@ export function consumeCheckpoint(token) {
   activeCards.delete(cleanText(token, "token"));
 }
 
+export function publicCheckpointAssessment(assessment) {
+  const publicAssessment = { ...assessment };
+  for (const key of ["expected", "rationale", "criteria"]) delete publicAssessment[key];
+  return publicAssessment;
+}
+
 export function assessCheckpoint(input) {
   const assessment = evaluateCheckpoint(input);
   consumeCheckpoint(input.token);
