@@ -1,0 +1,20 @@
+schema: opf-registry/1
+prompts:
+  diagnose:
+    source: diagnose.opf.md
+    renderer: opf
+  research-course:
+    source: research-course.opf.md
+    renderer: opf
+  plan-course:
+    source: plan-course.opf.md
+    renderer: opf
+  teach-lesson:
+    source: teach-lesson.opf.md
+    renderer: opf
+  practice:
+    source: practice.opf.md
+    renderer: opf
+  resume:
+    source: resume.opf.md
+    renderer: opf

@@ -3,6 +3,7 @@ import { cp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { buildReferences } from "./build-prompts.mjs";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -52,11 +53,6 @@ async function materializeTemplate(source, destination, replacements) {
 
 function yamlSingleQuoted(value) {
   return value.replaceAll("'", "''");
-}
-
-async function installReference(skillDirectory) {
-  const destination = join(skillDirectory, "references", "coaching-reference.md");
-  await writeFile(destination, await readFile(join(projectRoot, "shared", "coaching-reference.md"), "utf8"), "utf8");
 }
 
 async function installSkill(source, destination) {
@@ -115,7 +111,6 @@ async function installCodex() {
   const source = join(projectRoot, "adapters", "codex");
   const skillDestination = join(target, ".codex", "skills", "concept-coach");
   await installSkill(join(source, ".codex", "skills", "concept-coach"), skillDestination);
-  await installReference(skillDestination);
   if (refresh) {
     process.stdout.write(`Refreshed Codex skill in ${skillDestination}\n`);
     registerCodexMcp();
@@ -133,7 +128,6 @@ async function installClaude() {
   const source = join(projectRoot, "adapters", "claude-code");
   const skillDestination = join(target, ".claude", "skills", "concept-coach");
   await installSkill(join(source, ".claude", "skills", "concept-coach"), skillDestination);
-  await installReference(skillDestination);
   if (refresh) {
     process.stdout.write(`Refreshed Claude Code skill in ${skillDestination}\n`);
     return;
@@ -151,7 +145,6 @@ async function installOpenCode() {
   const source = join(projectRoot, "adapters", "opencode");
   const skillDestination = join(target, ".opencode", "skills", "concept-coach");
   await installSkill(join(source, ".opencode", "skills", "concept-coach"), skillDestination);
-  await installReference(skillDestination);
   if (refresh) {
     process.stdout.write(`Refreshed OpenCode skill in ${skillDestination}\n`);
     return;
@@ -169,7 +162,6 @@ async function installDeepSeekHarness() {
   const source = join(projectRoot, "adapters", "deepseek-harness");
   const skillDestination = join(target, ".dsh", "skills", "concept-coach");
   await installSkill(join(source, ".dsh", "skills", "concept-coach"), skillDestination);
-  await installReference(skillDestination);
 
   const patchDestination = join(target, ".dsh", "concept-loom.patch.yml");
   if (!skipMcp && (refresh || !(await exists(patchDestination)))) {
@@ -208,6 +200,7 @@ async function installDeepSeekHarness() {
 }
 
 try {
+  await buildReferences({ check: true });
   await mkdir(target, { recursive: true });
   if (host === "codex") await installCodex();
   if (host === "claude-code") await installClaude();

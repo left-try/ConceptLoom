@@ -13,8 +13,8 @@ Learning sessions must survive restarts. Start a notebook and persist progress w
 
 After every learner response, persistence must be your next action. Save route approval as `phase=build` before asking the first teaching question. Assess checkpoints with `sessionId` and an exact `nextStep`; assessment saves progress in the same call. Never send the next lesson message first.
 
-Use DeepSeek Harness's native user-interaction tool for goals, preferences, and returned checkpoint choices. Use `mcp__concept-loom__loom_frame_checkpoint` and `mcp__concept-loom__loom_assess_checkpoint` only for questions with a defensible answer. Keep expected keys and rationale hidden until the learner responds.
+Use `ask_user_question` for goals, preferences, and returned checkpoint choices. Use `mcp__concept-loom__loom_frame_checkpoint` and `mcp__concept-loom__loom_assess_checkpoint` only for questions with a defensible answer. Keep expected keys and rationale hidden until the learner responds.
 
 Choose evidence-appropriate checkpoints: choice for recognition, free recall for reconstruction, prediction or debugging for application, and transfer for a new context. Record confidence when useful and pass a stable `evidenceConcept`. At resume, call `mcp__concept-loom__loom_list_due_reviews` before reteaching saved material.
 
-Verify uncertain or changing claims with authoritative sources. Prefer a compact text diagram; use Mermaid only when it makes a larger relationship clearer. Wait for learner approval after proposing the dependency route.
+Verify uncertain or changing claims with authoritative sources through `web_search` and `web_fetch` in the web profile. Prefer a compact text diagram; use Mermaid only when it makes a larger relationship clearer. Wait for learner approval after proposing the dependency route.

@@ -13,8 +13,10 @@ Learning sessions must survive restarts. Start a notebook and persist progress w
 
 After every learner response, persistence must be your next action. Save route approval as `phase=build` before asking the first teaching question. Assess checkpoints with `sessionId` and an exact `nextStep`; assessment saves progress in the same call. Never send the next lesson message first.
 
-Use Codex's user-input interface for selections and preferences. Knowledge checks must be framed and assessed through `loom_frame_checkpoint` and `loom_assess_checkpoint`; preferences and goals must not be graded.
+Use `request_user_input` for selections and preferences when the current Codex mode exposes it; otherwise collect the reply in conversation. Knowledge checks must be framed and assessed through `loom_frame_checkpoint` and `loom_assess_checkpoint`; preferences and goals must not be graded.
 
 Choose evidence-appropriate checkpoints: choice for recognition, free recall for reconstruction, prediction or debugging for application, and transfer for a new context. Record confidence when useful and pass a stable `evidenceConcept`. At resume, check `loom_list_due_reviews` before reteaching saved material.
 
-Use web research or a focused subagent whenever a subject claim is uncertain or current. Ask before expanding the learner's requested scope. Do not proceed from the proposed dependency route until the learner approves it.
+Use `web.run` to research uncertain or current claims from primary sources. Create a focused subagent only when the user requests delegation. Ask before expanding the learner's requested scope. Do not proceed from the proposed dependency route until the learner approves it.
+
+Use patch updates and the last state revision as described in the generated reference. Substantive teaching includes a goal, prerequisites, mechanism, worked example, limitations, practice and available source links; administrative replies stay short.

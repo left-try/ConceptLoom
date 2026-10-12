@@ -17,4 +17,6 @@ Use `AskUserQuestion` for preferences and for presenting checkpoint choices. Gra
 
 Choose evidence-appropriate checkpoints: choice for recognition, free recall for reconstruction, prediction or debugging for application, and transfer for a new context. Record confidence when useful and pass a stable `evidenceConcept`. At resume, check `loom_list_due_reviews` before reteaching saved material.
 
-Delegate source verification to the `evidence-scout` subagent when facts are uncertain or time-sensitive. Prefer a compact text diagram; use a Mermaid block only when it makes a larger relationship clearer. Wait for learner approval after proposing the dependency route.
+Use `WebSearch` and `WebFetch` to verify uncertain or current facts directly from primary sources. The `evidence-scout` subagent is optional when the user requests delegation. Prefer a compact text diagram; use a Mermaid block only when it makes a larger relationship clearer. Wait for learner approval after proposing the dependency route.
+
+Use patch updates and the last state revision as described in the generated reference. Substantive teaching includes a goal, prerequisites, mechanism, worked example, limitations, practice and available source links; administrative replies stay short.
