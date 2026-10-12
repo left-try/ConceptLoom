@@ -23,7 +23,7 @@ export function validateContract(name, value) {
 
 // Intentionally no free text, assessment bodies, arbitrary input/output objects,
 // grading metadata, token IDs, or evidence history. New fields require review.
-const scalarFields = ["schemaVersion", "eventId", "eventType", "timestamp", "parentEventId", "runId", "sessionId", "courseId", "lessonId", "nodeId", "host", "promptId", "promptDigest", "knowledgeProfileVersion", "status", "model", "generationLatencyMs"];
+const scalarFields = ["schemaVersion", "eventId", "eventType", "timestamp", "parentId", "runId", "sessionId", "courseUid", "lessonUid", "nodeUid", "host", "promptId", "promptDigest", "knowledgeProfileVersion", "status", "model", "generationLatencyMs"];
 function pick(value, fields) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return value;
   return Object.fromEntries(fields.filter(field => Object.hasOwn(value, field)).map(field => [field, value[field]]));
@@ -77,23 +77,50 @@ export async function captureEvent(root, event) {
   }
 }
 
-export function assessmentCapturePointer(attemptId) {
-  return { eventId: `practice-${attemptId}`, receiptPath: `.concept-loom/assessments/attempts/${attemptId}.json`, outboxPath };
+export function assessmentCapturePointer(attemptId, host = "other") {
+  return { eventId: `practice-${attemptId}`, receiptPath: `.concept-loom/assessments/attempts/${attemptId}.json`, outboxPath, host };
 }
 function assessmentEvent(receipt) {
   return {
     schemaVersion: 1, eventId: assessmentCapturePointer(receipt.attemptId).eventId, eventType: "practice-assessed", timestamp: receipt.assessedAt,
-    sessionId: receipt.learningState.sessionId, status: "completed",
+    sessionId: receipt.learningState.sessionId, host: receipt.capture?.host ?? "other", status: "completed",
     input: { attemptId: receipt.attemptId, format: receipt.assessment.format, hintUsed: receipt.input.hintUsed ?? false },
     output: { outcome: receipt.assessment.outcome, revision: receipt.learningState.revision },
   };
 }
 export async function captureAssessment(root, receipt) {
-  const pointer = assessmentCapturePointer(receipt.attemptId);
+  const pointer = assessmentCapturePointer(receipt.attemptId, receipt.capture?.host ?? "other");
   const result = await captureEvent(root, assessmentEvent(receipt));
   return { ...pointer, diagnostics: result.diagnostics };
 }
-export async function recoverCapture(root, { attemptId } = {}) {
+function restoreCapturePointer(eventId) {
+  return { eventId, receiptPath: `.concept-loom/capture/restores/${eventId}.json`, outboxPath };
+}
+async function persistRestoreReceipt(root, receiptPath, event) {
+  const destination = await resolveContainedPath(root, receiptPath, { create: true });
+  const temporary = await resolveContainedPath(root, `${receiptPath}.${randomUUID()}.tmp`);
+  // Optional capture receipts must not leave a prepared global learning journal.
+  // Publish only a fully written, synced factual descriptor under the F1 lock.
+  try {
+    const handle = await fs.open(temporary, "wx");
+    try { await handle.writeFile(`${JSON.stringify({ schemaVersion: 1, event })}\n`, "utf8"); await handle.sync(); }
+    finally { await handle.close(); }
+    await fs.rename(temporary, destination);
+  } finally { await fs.rm(temporary, { force: true }).catch(() => {}); }
+}
+export async function recoverCapture(root, { attemptId, eventId } = {}) {
+  if (eventId !== undefined) {
+    if (attemptId !== undefined || typeof eventId !== "string" || !/^restore-[a-z0-9_-]{1,100}$/i.test(eventId)) return failure("CAPTURE_INVALID_EVENT");
+    const pointer = restoreCapturePointer(eventId);
+    try {
+      return await withWorkspaceLock(root, async () => {
+        assertRecovery(await recoverTransactions(root));
+        const receipt = JSON.parse(await fs.readFile(await resolveContainedPath(root, pointer.receiptPath), "utf8"));
+        if (receipt.schemaVersion !== 1 || !validateContract("capture-event", receipt.event).valid || receipt.event.eventId !== eventId || receipt.event.eventType !== "state-restored") return failure("CAPTURE_RECEIPT_INVALID");
+        return { ...await captureEvent(root, receipt.event), ...pointer, timestamp: receipt.event.timestamp };
+      });
+    } catch (error) { return { ...failure(error.code === "ENOENT" ? "CAPTURE_RECEIPT_NOT_FOUND" : "CAPTURE_RECOVERY_FAILED"), ...pointer }; }
+  }
   if (typeof attemptId !== "string" || !/^[a-z0-9][a-z0-9_-]{0,63}$/i.test(attemptId)) return failure("CAPTURE_INVALID_ATTEMPT");
   try {
     return await withWorkspaceLock(root, async () => {
@@ -102,14 +129,21 @@ export async function recoverCapture(root, { attemptId } = {}) {
       const receipt = JSON.parse(await fs.readFile(await resolveContainedPath(root, pointer.receiptPath), "utf8"));
       if (receipt.schemaVersion !== 1 || receipt.attemptId !== attemptId || !receipt.assessment || !receipt.learningState || !receipt.input) return failure("CAPTURE_RECEIPT_INVALID");
       const result = await captureEvent(root, assessmentEvent(receipt));
-      return { ...result, ...pointer };
+      return { ...result, ...assessmentCapturePointer(attemptId, receipt.capture?.host ?? "other") };
     });
   } catch (error) { return failure(error.code === "ENOENT" ? "CAPTURE_RECEIPT_NOT_FOUND" : "CAPTURE_RECOVERY_FAILED"); }
 }
-export async function captureRestoredState(root, state) {
+export async function captureRestoredState(root, state, { host = "other" } = {}) {
   const eventId = `restore-${randomUUID()}`;
-  const result = await captureEvent(root, { schemaVersion: 1, eventId, eventType: "state-restored", timestamp: new Date().toISOString(), sessionId: state.sessionId, status: "completed", output: { revision: state.revision, phase: state.phase } });
-  return { eventId, statePath: `.concept-loom/sessions/${state.sessionId}.json`, diagnostics: result.diagnostics };
+  const event = { schemaVersion: 1, eventId, eventType: "state-restored", timestamp: new Date().toISOString(), host, sessionId: state.sessionId, status: "completed", input: {}, output: { revision: state.revision, phase: state.phase } };
+  const pointer = { ...restoreCapturePointer(eventId), timestamp: event.timestamp };
+  if (!validateContract("capture-event", event).valid) return { ...pointer, diagnostics: failure("CAPTURE_INVALID").diagnostics };
+  try {
+    return await withWorkspaceLock(root, async () => {
+      await persistRestoreReceipt(root, pointer.receiptPath, event);
+      return { ...pointer, diagnostics: (await captureEvent(root, event)).diagnostics };
+    });
+  } catch { return { ...pointer, diagnostics: failure("CAPTURE_RECEIPT_WRITE_FAILED").diagnostics }; }
 }
 
 export function tools(root) {
@@ -119,7 +153,7 @@ export function tools(root) {
       invoke: ({ name, value }) => validateContract(name, value),
     },
     {
-      definition: { name: "loom_recover_capture", description: "Recover factual public assessment capture from an existing committed receipt without grading or updating learner state.", inputSchema: { type: "object", required: ["attemptId"], properties: { attemptId: { type: "string", pattern: "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$" } } } },
+      definition: { name: "loom_recover_capture", description: "Recover factual assessment capture by attemptId or restore capture by eventId from an existing committed receipt without grading or updating learner state.", inputSchema: { type: "object", additionalProperties: false, oneOf: [{ required: ["attemptId"], not: { required: ["eventId"] } }, { required: ["eventId"], not: { required: ["attemptId"] } }], properties: { attemptId: { type: "string", pattern: "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$" }, eventId: { type: "string", pattern: "^restore-[a-zA-Z0-9_-]{1,100}$" } } } },
       invoke: args => recoverCapture(root, args),
     },
   ];

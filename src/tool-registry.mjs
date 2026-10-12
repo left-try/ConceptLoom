@@ -149,7 +149,7 @@ export function createToolRegistry(root, options = {}) {
   const handlers = new Map([
     ["loom_frame_checkpoint", args => composeCheckpoint(args)],
     ["loom_assess_checkpoint", async args => {
-      const { assessment, learningState, attemptId, capture } = await assessAndPersist(root, args, { capture: options.capture !== false });
+      const { assessment, learningState, attemptId, capture } = await assessAndPersist(root, args, { capture: options.capture !== false, host: options.host ?? "other" });
       return { ...assessment, learningState, attemptId, ...(capture ? { capture } : {}) };
     }],
     ["loom_start_notebook", async args => ({ path: await beginNotebook(root, args) })],
@@ -158,7 +158,7 @@ export function createToolRegistry(root, options = {}) {
     ["loom_load_learning_state", async args => {
       const loaded = await loadLearningState(root, args);
       return loaded.state && options.capture !== false
-        ? { ...loaded, capture: await captureRestoredState(root, loaded.state) } : loaded;
+        ? { ...loaded, capture: await captureRestoredState(root, loaded.state, { host: options.host ?? "other" }) } : loaded;
     }],
     ["loom_list_due_reviews", args => listDueReviews(root, args)],
   ]);

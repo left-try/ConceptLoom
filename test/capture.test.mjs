@@ -12,7 +12,7 @@ import { createToolRegistry } from "../src/tool-registry.mjs";
 const url = new URL("../src/evaluation/capture.mjs", import.meta.url);
 const outbox = ".concept-loom/evaluation/events.jsonl";
 const timestamp = "2026-10-12T08:00:00.000Z";
-const event = overrides => ({ schemaVersion: 1, eventId: "event-1", eventType: "practice-assessed", timestamp, sessionId: "lesson", input: { attemptId: "attempt-1", format: "choice", hintUsed: false }, output: { outcome: "accurate", revision: 2 }, ...overrides });
+const event = overrides => ({ schemaVersion: 1, eventId: "event-1", eventType: "practice-assessed", timestamp, host: "other", sessionId: "lesson", input: { attemptId: "attempt-1", format: "choice", hintUsed: false }, output: { outcome: "accurate", revision: 2 }, ...overrides });
 async function api() {
   const module = await import(url.href).catch(error => { if (error.code === "ERR_MODULE_NOT_FOUND") return {}; throw error; });
   assert.equal(typeof module.captureEvent, "function", "local capture contracts must exist");
@@ -98,7 +98,94 @@ test("eval results require evaluator identity and distinguish completed/error/sk
   const { validateContract } = await api();
   const base = { schemaVersion: 1, resultId: "result-1", eventId: "event-1", evaluatorId: "contracts", evaluatorVersion: "1", timestamp };
   for (const result of [{ ...base, status: "completed", passed: true }, { ...base, status: "completed", passed: false }, { ...base, status: "error", diagnostics: [{ severity: "error", code: "INVALID_CONTRACT" }] }, { ...base, status: "skipped" }]) assert.equal(validateContract("eval-result", result).valid, true, JSON.stringify(result));
-  for (const result of [{ ...base, status: "completed" }, { ...base, status: "error", passed: true }, { ...base, status: "skipped", passed: true }, { ...base, status: "completed", passed: true, evaluatorVersion: "" }, { ...base, status: "completed", passed: true, rationale: "private" }]) assert.equal(validateContract("eval-result", result).valid, false, JSON.stringify(result));
+  for (const result of [{ ...base, status: "completed" }, { ...base, status: "error", passed: true }, { ...base, status: "skipped", passed: true }, { ...base, status: "completed", passed: true, evaluatorVersion: "" }, { ...base, status: "completed", passed: true, rationale: { expected: "private" } }]) assert.equal(validateContract("eval-result", result).valid, false, JSON.stringify(result));
+});
+
+test("shared CaptureEvent requires every canonical core field and permits empty factual input/output", async t => {
+  const { captureEvent, validateContract } = await api(), root = await fixture(t);
+  const minimal = { schemaVersion: 1, eventId: "minimal", eventType: "state-restored", timestamp, host: "other", input: {}, output: {} };
+  assert.equal(validateContract("capture-event", minimal).valid, true);
+  for (const field of ["schemaVersion", "eventId", "eventType", "timestamp", "host", "input", "output"]) {
+    const incomplete = { ...minimal };
+    delete incomplete[field];
+    assert.equal(validateContract("capture-event", incomplete).valid, false, field);
+    assert.equal((await captureEvent(root, incomplete)).diagnostics[0]?.code, "CAPTURE_INVALID", field);
+  }
+  for (const eventType of ["research-completed", "roadmap-proposed", "lesson-published", "source-prepared", "knowledge-updated", "practice-assessed", "state-restored", "dispatch-result"]) assert.equal(validateContract("capture-event", { ...minimal, eventType }).valid, true, eventType);
+  assert.equal((await captureEvent(root, minimal)).recorded, true);
+  assert.deepEqual(await events(root), [minimal]);
+});
+
+test("shared CaptureEvent schema and projection preserve canonical optional names", async t => {
+  const { captureEvent, validateContract } = await api(), root = await fixture(t);
+  const value = event({ parentId: "parent", runId: "run", courseUid: "course", lessonUid: "lesson-uid", nodeUid: "node", host: "codex", promptId: "practice", promptDigest: `sha256:${"a".repeat(64)}`, knowledgeProfileVersion: "knowledge/1", sourceHashes: [`sha256:${"b".repeat(64)}`], model: "provider-model", tokenUsage: { source: "provider-reported", inputTokens: 1 }, generationLatencyMs: 10 });
+  assert.equal(validateContract("capture-event", value).valid, true);
+  for (const name of ["parentId", "runId", "courseUid", "lessonUid", "nodeUid", "host", "promptId", "promptDigest", "knowledgeProfileVersion", "model"]) assert.equal(validateContract("capture-event", { ...value, [name]: 9 }).valid, false, name);
+  for (const renamed of ["parentEventId", "courseId", "lessonId", "nodeId"]) assert.equal(validateContract("capture-event", { ...value, [renamed]: "legacy" }).valid, false, renamed);
+  assert.equal((await captureEvent(root, { ...value, parentEventId: "legacy", courseId: "legacy", lessonId: "legacy", nodeId: "legacy", rationale: "PRIVATE" })).recorded, true);
+  assert.deepEqual(await events(root), [value]);
+});
+
+test("shared EvalResult supports typed optional scores dimensions rationale and diagnostics without changing capture privacy", async t => {
+  const { captureEvent, validateContract } = await api(), root = await fixture(t);
+  const result = { schemaVersion: 1, resultId: "result-1", eventId: "event-1", evaluatorId: "contracts", evaluatorVersion: "1", timestamp, status: "completed", passed: true, score: 0.9, dimensions: { mechanism: 3, example: 2, level: 2, grounding: 3 }, rationale: "Observed artifact satisfies the explanation contract.", diagnostics: [{ severity: "info", code: "CONTRACT_VALID", message: "Required sections found." }] };
+  assert.equal(validateContract("eval-result", result).valid, true);
+  for (const field of ["schemaVersion", "resultId", "eventId", "evaluatorId", "evaluatorVersion", "timestamp", "status", "passed"]) {
+    const incomplete = { ...result };
+    delete incomplete[field];
+    assert.equal(validateContract("eval-result", incomplete).valid, false, field);
+  }
+  for (const invalid of [{ score: "0.9" }, { dimensions: [] }, { dimensions: { mechanism: 4 } }, { dimensions: { mechanism: { criteria: "private" } } }, { rationale: { hiddenReasoning: "private" } }, { diagnostics: [{ severity: "info", code: "OK", message: { criteria: "private" } }] }, { criteria: ["private"] }, { expected: "private" }, { hiddenReasoning: "private" }]) assert.equal(validateContract("eval-result", { ...result, ...invalid }).valid, false, JSON.stringify(invalid));
+  assert.equal(validateContract("capture-event", event({ rationale: result.rationale })).valid, false);
+  await captureEvent(root, event({ score: result.score, dimensions: result.dimensions, rationale: "PRIVATE-EVAL-RATIONALE", diagnostics: result.diagnostics }));
+  assert.deepEqual(await events(root), [event()]);
+});
+
+test("restore capture recovers original event facts after the committed session advances", async t => {
+  const root = await fixture(t);
+  await assessmentInput(root);
+  await fs.writeFile(join(root, ".concept-loom/evaluation"), "blocked");
+  const registry = createToolRegistry(root, { host: "codex", evaluationTools: true });
+  const original = (await registry.invoke("loom_load_learning_state", { sessionId: "lesson" })).structuredContent;
+  assert.equal(original.capture.diagnostics[0].severity, "error");
+  await saveLearningState(root, { sessionId: "lesson", phase: "review", nextStep: "PRIVATE-FUTURE-STEP", learnerContext: "PRIVATE-LEARNER-CONTEXT" });
+  const advanced = await fs.readFile(join(root, ".concept-loom/sessions/lesson.json"), "utf8");
+  assert.equal(JSON.parse(advanced).revision, 2);
+  await fs.rm(join(root, ".concept-loom/evaluation"));
+  assert.equal(typeof original.capture.receiptPath, "string", "restore capture requires a durable factual receipt");
+  const descriptor = JSON.parse(await fs.readFile(join(root, original.capture.receiptPath), "utf8"));
+  assert.equal(descriptor.event.eventId, original.capture.eventId);
+  assert.equal(descriptor.event.timestamp, original.capture.timestamp);
+  const recovered = (await registry.invoke("loom_recover_capture", { eventId: original.capture.eventId })).structuredContent;
+  assert.equal(recovered.recorded, true, JSON.stringify(recovered));
+  assert.deepEqual(await events(root), [{ schemaVersion: 1, eventId: original.capture.eventId, eventType: "state-restored", timestamp: original.capture.timestamp, host: "codex", sessionId: "lesson", status: "completed", input: {}, output: { revision: 1, phase: "build" } }]);
+  assert.equal((await registry.invoke("loom_recover_capture", { eventId: original.capture.eventId })).structuredContent.recorded, false);
+  assert.equal(await fs.readFile(join(root, ".concept-loom/sessions/lesson.json"), "utf8"), advanced);
+  assert.doesNotMatch(JSON.stringify(descriptor), /PRIVATE|learnerContext|nextStep|expected|criteria|rationale/);
+});
+
+test("assessment producers preserve truthful configured host in committed capture and receipt recovery", async t => {
+  const { recoverCapture } = await api(), root = await fixture(t), input = await assessmentInput(root);
+  await fs.writeFile(join(root, ".concept-loom/evaluation"), "blocked");
+  await createToolRegistry(root, { host: "claude-code" }).invoke("loom_assess_checkpoint", input);
+  await fs.rm(join(root, ".concept-loom/evaluation"));
+  await recoverCapture(root, { attemptId: input.attemptId });
+  assert.equal((await events(root))[0].host, "claude-code");
+  const plain = await fixture(t), plainInput = await assessmentInput(plain);
+  await assessAndPersist(plain, plainInput);
+  assert.equal((await events(plain))[0].host, "other");
+});
+
+test("restore receipt storage failure is visible and cannot block later learning transactions", async t => {
+  const root = await fixture(t);
+  await assessmentInput(root);
+  await fs.writeFile(join(root, ".concept-loom/capture"), "blocked");
+  const loaded = (await createToolRegistry(root).invoke("loom_load_learning_state", { sessionId: "lesson" })).structuredContent;
+  assert.equal(loaded.state.revision, 1);
+  assert.equal(loaded.capture.diagnostics[0].code, "CAPTURE_RECEIPT_WRITE_FAILED");
+  const updated = await saveLearningState(root, { sessionId: "lesson", nextStep: "Continue", phase: "review" });
+  assert.equal(updated.revision, 2);
+  assert.equal(updated.phase, "review");
 });
 
 test("error diagnostics cannot be counted as a passing evaluation", async () => {

@@ -13,11 +13,18 @@
     "timestamp": { "type": "string", "format": "date-time" },
     "status": { "enum": ["completed", "error", "skipped"] },
     "passed": { "type": "boolean" },
+    "score": { "type": "number", "minimum": 0 },
+    "dimensions": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$" },
+      "additionalProperties": { "type": "number", "minimum": 0, "maximum": 3 }
+    },
+    "rationale": { "type": "string", "maxLength": 8192 },
     "diagnostics": {
       "type": "array",
       "items": {
         "type": "object", "additionalProperties": false, "required": ["severity", "code"],
-        "properties": { "severity": { "enum": ["info", "warning", "error"] }, "code": { "$ref": "#/$defs/id" } }
+        "properties": { "severity": { "enum": ["info", "warning", "error"] }, "code": { "$ref": "#/$defs/id" }, "message": { "type": "string", "maxLength": 2048 } }
       }
     }
   },

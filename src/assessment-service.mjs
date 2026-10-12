@@ -40,7 +40,7 @@ async function readReceipt(root, path) {
   catch (error) { if (error.code === "ENOENT") return null; throw error; }
 }
 
-export async function assessAndPersist(root, input, { capture = true } = {}) {
+export async function assessAndPersist(root, input, { capture = true, host = "other" } = {}) {
   // Copy before awaiting so caller mutations cannot alter a queued request.
   const request = JSON.parse(JSON.stringify(input));
   const token = requiredText(request.token, "token");
@@ -87,7 +87,7 @@ export async function assessAndPersist(root, input, { capture = true } = {}) {
     const patch = checkpointAssessmentPatch(previous, { ...request, attemptId }, assessment, assessedAt);
     const learningState = { ...previous, ...patch, schemaVersion: 3, updatedAt: assessedAt, revision: previous.revision + 1 };
     const receipt = JSON.parse(JSON.stringify({ schemaVersion: 1, attemptId, inputHash, input: request, assessment, learningState, assessedAt,
-      capture: assessmentCapturePointer(attemptId) }));
+      capture: assessmentCapturePointer(attemptId, host) }));
     await commitTransaction(root, {
       id: `assessment-${attemptId}`,
       checks: [{ path: statePath, expectedHash: hashBytes(bytes) }, { path: receiptPath, expectedHash: null }, { path: tokenPath, expectedHash: null }],
