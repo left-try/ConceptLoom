@@ -4,6 +4,7 @@ import { consumeCheckpoint, evaluateCheckpoint, publicCheckpointAssessment } fro
 import { checkpointAssessmentPatch, loadLearningState, publicLearningState } from "./progress.mjs";
 import { resolveContainedPath } from "./storage/paths.mjs";
 import { assertRecovery, commitTransaction, hashBytes, recoverTransactions, withWorkspaceLock } from "./storage/transactions.mjs";
+import { assessmentCapturePointer, captureAssessment } from "./evaluation/capture.mjs";
 
 const tokenQueues = new Map();
 
@@ -39,7 +40,7 @@ async function readReceipt(root, path) {
   catch (error) { if (error.code === "ENOENT") return null; throw error; }
 }
 
-export async function assessAndPersist(root, input) {
+export async function assessAndPersist(root, input, { capture = true } = {}) {
   // Copy before awaiting so caller mutations cannot alter a queued request.
   const request = JSON.parse(JSON.stringify(input));
   const token = requiredText(request.token, "token");
@@ -61,7 +62,8 @@ export async function assessAndPersist(root, input) {
         throw Object.assign(new Error("ATTEMPT_CONFLICT: attemptId was already used with different input"), { code: "ATTEMPT_CONFLICT" });
       }
       consumeCheckpoint(token);
-      return { assessment: publicCheckpointAssessment(existing.assessment), learningState: publicLearningState(existing.learningState), attemptId };
+      return { assessment: publicCheckpointAssessment(existing.assessment), learningState: publicLearningState(existing.learningState), attemptId,
+        ...(capture ? { capture: await captureAssessment(root, existing) } : {}) };
     }
 
     // A different tool may have recovered an interrupted commit while this
@@ -84,7 +86,8 @@ export async function assessAndPersist(root, input) {
     const assessedAt = new Date().toISOString();
     const patch = checkpointAssessmentPatch(previous, { ...request, attemptId }, assessment, assessedAt);
     const learningState = { ...previous, ...patch, schemaVersion: 3, updatedAt: assessedAt, revision: previous.revision + 1 };
-    const receipt = JSON.parse(JSON.stringify({ schemaVersion: 1, attemptId, inputHash, input: request, assessment, learningState, assessedAt }));
+    const receipt = JSON.parse(JSON.stringify({ schemaVersion: 1, attemptId, inputHash, input: request, assessment, learningState, assessedAt,
+      capture: assessmentCapturePointer(attemptId) }));
     await commitTransaction(root, {
       id: `assessment-${attemptId}`,
       checks: [{ path: statePath, expectedHash: hashBytes(bytes) }, { path: receiptPath, expectedHash: null }, { path: tokenPath, expectedHash: null }],
@@ -96,6 +99,7 @@ export async function assessAndPersist(root, input) {
       events: [{ eventId: attemptId, type: "checkpoint-assessed", sessionId, token, assessedAt }],
     });
     consumeCheckpoint(token);
-    return { assessment: publicCheckpointAssessment(receipt.assessment), learningState: receipt.learningState, attemptId };
+    return { assessment: publicCheckpointAssessment(receipt.assessment), learningState: receipt.learningState, attemptId,
+      ...(capture ? { capture: await captureAssessment(root, receipt) } : {}) };
   }));
 }

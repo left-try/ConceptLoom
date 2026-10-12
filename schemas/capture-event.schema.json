@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://conceptloom.local/schemas/capture-event/1",
+  "title": "Public factual capture event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "eventId", "eventType", "timestamp"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "eventId": { "$ref": "#/$defs/id" },
+    "eventType": { "enum": ["research-completed", "roadmap-proposed", "lesson-published", "source-prepared", "knowledge-updated", "practice-assessed", "state-restored", "dispatch-result"] },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "parentEventId": { "$ref": "#/$defs/id" },
+    "runId": { "$ref": "#/$defs/id" },
+    "sessionId": { "$ref": "#/$defs/id" },
+    "courseId": { "$ref": "#/$defs/id" },
+    "lessonId": { "$ref": "#/$defs/id" },
+    "nodeId": { "$ref": "#/$defs/id" },
+    "host": { "$ref": "#/$defs/id" },
+    "promptId": { "$ref": "#/$defs/id" },
+    "promptDigest": { "$ref": "#/$defs/hash" },
+    "knowledgeProfileVersion": { "$ref": "#/$defs/id" },
+    "sourceHashes": { "type": "array", "items": { "$ref": "#/$defs/hash" }, "uniqueItems": true },
+    "status": { "enum": ["completed", "error", "skipped"] },
+    "model": { "$ref": "#/$defs/id" },
+    "tokenUsage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source"],
+      "anyOf": [{ "required": ["inputTokens"] }, { "required": ["outputTokens"] }, { "required": ["totalTokens"] }],
+      "properties": {
+        "source": { "const": "provider-reported" },
+        "inputTokens": { "type": "integer", "minimum": 0 },
+        "outputTokens": { "type": "integer", "minimum": 0 },
+        "totalTokens": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "generationLatencyMs": { "type": "number", "minimum": 0 },
+    "input": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "attemptId": { "$ref": "#/$defs/id" },
+        "format": { "enum": ["choice", "free-recall", "prediction", "debugging", "transfer"] },
+        "hintUsed": { "type": "boolean" }
+      }
+    },
+    "output": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "outcome": { "enum": ["accurate", "needs-repair", "knowledge-gap"] },
+        "revision": { "type": "integer", "minimum": 0 },
+        "phase": { "enum": ["locate", "weave", "build", "transfer", "review", "complete"] },
+        "format": { "enum": ["choice", "free-recall", "prediction", "debugging", "transfer"] }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["path", "contentHash"],
+        "properties": { "path": { "$ref": "#/$defs/id" }, "contentHash": { "$ref": "#/$defs/hash" } }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "\\S" },
+    "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  }
+}

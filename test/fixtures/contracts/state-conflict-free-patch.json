@@ -1,0 +1,36 @@
+{
+  "kind": "state",
+  "initial": {
+    "sessionId": "lesson",
+    "topic": "Атомарность",
+    "goal": "Разобраться",
+    "phase": "build",
+    "route": [
+      "Транзакции"
+    ],
+    "gaps": [
+      "Изоляция"
+    ],
+    "nextStep": "Ответ"
+  },
+  "patch": {
+    "sessionId": "lesson",
+    "secured": [
+      "Атомарность"
+    ],
+    "expectedRevision": 1,
+    "nextStep": "Перенос"
+  },
+  "expected": {
+    "route": [
+      "Транзакции"
+    ],
+    "gaps": [
+      "Изоляция"
+    ],
+    "secured": [
+      "Атомарность"
+    ],
+    "revision": 2
+  }
+}

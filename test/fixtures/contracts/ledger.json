@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "plannedStructuralCases": 24,
+  "implementedStructuralCases": 8,
+  "cases": [
+    {
+      "id": "FND-C01",
+      "fixture": "state-patch.json",
+      "origin": {
+        "file": "test/progress.test.mjs",
+        "test": "patch preserves omitted arrays"
+      }
+    },
+    {
+      "id": "FND-C02",
+      "fixture": "state-conflict-free-patch.json",
+      "origin": {
+        "file": "test/progress.test.mjs",
+        "test": "updates a session atomically and increments its revision"
+      }
+    },
+    {
+      "id": "FND-C03",
+      "fixture": "concealed-card.json",
+      "origin": {
+        "file": "test/checkpoints.test.mjs",
+        "test": "frames a checkpoint without leaking its key or rationale"
+      }
+    },
+    {
+      "id": "FND-C04",
+      "fixture": "opf-message-injection.json",
+      "origin": {
+        "file": "test/prompts.test.mjs",
+        "test": "input cannot add messages or recursively interpolate"
+      }
+    },
+    {
+      "id": "FND-C05",
+      "fixture": "diagram-safe-label.json",
+      "origin": {
+        "file": "test/diagrams.test.mjs",
+        "test": "labels remain escaped text"
+      }
+    },
+    {
+      "id": "FND-C06",
+      "fixture": "diagram-unknown-endpoint.json",
+      "origin": {
+        "file": "test/diagrams.test.mjs",
+        "test": "missing endpoint fails"
+      }
+    },
+    {
+      "id": "FND-C07",
+      "fixture": "capture-known-facts.json",
+      "origin": {
+        "file": "test/capture.test.mjs",
+        "test": "unknown usage stays absent and inferred token usage is excluded"
+      }
+    },
+    {
+      "id": "FND-C08",
+      "fixture": "eval-error-not-pass.json",
+      "origin": {
+        "file": "test/capture.test.mjs",
+        "test": "eval results require evaluator identity and distinguish completed/error/skipped"
+      }
+    }
+  ],
+  "remainingStructuralCaseIds": [
+    "FND-C09",
+    "FND-C10",
+    "FND-C11",
+    "FND-C12",
+    "FND-C13",
+    "FND-C14",
+    "FND-C15",
+    "FND-C16",
+    "FND-C17",
+    "FND-C18",
+    "FND-C19",
+    "FND-C20",
+    "FND-C21",
+    "FND-C22",
+    "FND-C23",
+    "FND-C24"
+  ]
+}

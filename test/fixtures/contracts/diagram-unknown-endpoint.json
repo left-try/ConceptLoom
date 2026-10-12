@@ -1,0 +1,19 @@
+{
+  "kind": "diagrams",
+  "input": {
+    "nodes": [
+      {
+        "id": "a",
+        "label": "Atomicity",
+        "kind": "concept"
+      }
+    ],
+    "edges": [
+      {
+        "from": "a",
+        "to": "absent"
+      }
+    ]
+  },
+  "error": "endpoint.*existing node"
+}

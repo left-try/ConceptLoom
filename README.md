@@ -88,6 +88,16 @@ The installer refuses to overwrite existing configuration. Merge a generated Con
 
 Concept Loom uses `yaml` and `ajv` to parse and validate its OPF prompt catalog and check generated references during setup. Their versions are recorded in the lockfile. Small structures are displayed as monospace text diagrams; larger relationship maps are returned as Mermaid blocks that remain readable in the terminal and render in compatible Markdown viewers.
 
+## Foundation persistence and local evaluation
+
+Learning state uses schema v3 with revision checks and a workspace transaction journal. Patch updates preserve omitted fields; supplied arrays and evidence objects replace their corresponding values. Snapshot updates require the complete core state. Migration from v1/v2 preserves a backup. Assessment commits the attempt receipt, learner evidence, resume point and token claim together. Reusing the same `attemptId` with the same input returns the committed result; different input conflicts.
+
+Public factual `practice-assessed` events and registry `state-restored` events append to `.concept-loom/evaluation/events.jsonl`, serialized by the workspace lock and deduplicated by `eventId`. Capture uses a reviewed allowlist: no expected answers, rationale, hidden reasoning, grading criteria, private assessment material or arbitrary learner text. Model, generation latency and provider-reported token usage remain absent unless explicitly available; tool duration never becomes model latency. Schemas in `schemas/` use JSON Schema Draft 2020-12. `validateContract("capture-event" | "eval-result", value)` returns `{valid,errors}`; `error` and `skipped` evaluation results cannot report a pass.
+
+An outbox failure returns visible `capture.diagnostics` without undoing committed assessment or losing the consumed token. Every new private assessment receipt stores a `capture` pointer with its event ID, receipt path and outbox path. After fixing the outbox, retry the original assessment input or call `recoverCapture(root, {attemptId})` from `src/evaluation/capture.mjs`; recovery reads only factual receipt fields and never grades again. Legacy committed receipts can also be recovered using their attempt ID. Malformed outbox content is reported and preserved for repair. Capture does not depend on an external evaluator, SDK or worker, and general capture cannot claim `lesson-published`; that event requires a later explicit artifact tool.
+
+`createToolRegistry(root)` retains the nine existing MCP tools and their JSON-RPC transport. Local hosts can opt into `loom_validate_contract` and `loom_recover_capture` using `createToolRegistry(root, {evaluationTools: true})`, or disable automatic capture with `{capture: false}`. No evaluation tools are required for learning operations. `test/fixtures/contracts/ledger.json` maps the first eight executable structural cases to their fixtures and originating tests; the remaining 16 structural cases and the pedagogical suite belong to the later evaluation phase.
+
 ## Verify the project
 
 ```bash

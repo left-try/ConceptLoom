@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://conceptloom.local/schemas/eval-result/1",
+  "title": "Evaluation result v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "resultId", "eventId", "evaluatorId", "evaluatorVersion", "timestamp", "status"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "resultId": { "$ref": "#/$defs/id" },
+    "eventId": { "$ref": "#/$defs/id" },
+    "evaluatorId": { "$ref": "#/$defs/id" },
+    "evaluatorVersion": { "$ref": "#/$defs/id" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "status": { "enum": ["completed", "error", "skipped"] },
+    "passed": { "type": "boolean" },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["severity", "code"],
+        "properties": { "severity": { "enum": ["info", "warning", "error"] }, "code": { "$ref": "#/$defs/id" } }
+      }
+    }
+  },
+  "allOf": [{
+    "if": { "properties": { "status": { "const": "completed" } }, "required": ["status"] },
+    "then": { "required": ["passed"] },
+    "else": { "not": { "required": ["passed"] } }
+  }, {
+    "if": { "properties": { "passed": { "const": true } }, "required": ["passed"] },
+    "then": { "properties": { "diagnostics": { "type": "array", "not": { "contains": { "type": "object", "properties": { "severity": { "const": "error" } }, "required": ["severity"] } } } } }
+  }],
+  "$defs": { "id": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "\\S" } }
+}

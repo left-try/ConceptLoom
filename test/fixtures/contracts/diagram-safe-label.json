@@ -1,0 +1,14 @@
+{
+  "kind": "diagrams",
+  "input": {
+    "nodes": [
+      {
+        "id": "a",
+        "label": "<b>\"Atomicity\"</b>",
+        "kind": "concept"
+      }
+    ],
+    "edges": []
+  },
+  "expectedPattern": "#60;b#62;#34;Atomicity#34;#60;#47;b#62;"
+}

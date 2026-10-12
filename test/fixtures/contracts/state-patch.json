@@ -1,0 +1,36 @@
+{
+  "kind": "state",
+  "initial": {
+    "sessionId": "lesson",
+    "topic": "Atomicity",
+    "goal": "Learn",
+    "phase": "build",
+    "route": [
+      "Atomicity"
+    ],
+    "secured": [
+      "Transactions"
+    ],
+    "gaps": [
+      "Isolation"
+    ],
+    "nextStep": "Answer"
+  },
+  "patch": {
+    "sessionId": "lesson",
+    "nextStep": "Transfer"
+  },
+  "expected": {
+    "route": [
+      "Atomicity"
+    ],
+    "secured": [
+      "Transactions"
+    ],
+    "gaps": [
+      "Isolation"
+    ],
+    "nextStep": "Transfer",
+    "revision": 2
+  }
+}

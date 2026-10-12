@@ -1,0 +1,15 @@
+{
+  "kind": "capture",
+  "contract": "eval-result",
+  "input": {
+    "schemaVersion": 1,
+    "resultId": "fixture-eval",
+    "eventId": "fixture-capture",
+    "evaluatorId": "contracts",
+    "evaluatorVersion": "1",
+    "timestamp": "2026-10-12T08:00:00.000Z",
+    "status": "error",
+    "passed": true
+  },
+  "valid": false
+}

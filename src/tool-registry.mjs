@@ -3,6 +3,7 @@ import { assessAndPersist } from "./assessment-service.mjs";
 import { beginNotebook, addNotebookEntry } from "./notebook.mjs";
 import { listDueReviews, loadLearningState, saveLearningState } from "./progress.mjs";
 import { tools as diagramTools } from "./diagram-tools.mjs";
+import { tools as evaluationTools, captureRestoredState } from "./evaluation/capture.mjs";
 
 const coreCatalog = [
   {
@@ -144,22 +145,27 @@ function textResult(value) {
   return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value };
 }
 
-export function createToolRegistry(root) {
+export function createToolRegistry(root, options = {}) {
   const handlers = new Map([
     ["loom_frame_checkpoint", args => composeCheckpoint(args)],
     ["loom_assess_checkpoint", async args => {
-      const { assessment, learningState, attemptId } = await assessAndPersist(root, args);
-      return { ...assessment, learningState, attemptId };
+      const { assessment, learningState, attemptId, capture } = await assessAndPersist(root, args, { capture: options.capture !== false });
+      return { ...assessment, learningState, attemptId, ...(capture ? { capture } : {}) };
     }],
     ["loom_start_notebook", async args => ({ path: await beginNotebook(root, args) })],
     ["loom_add_note", async args => ({ path: await addNotebookEntry(root, args) })],
     ["loom_save_learning_state", args => saveLearningState(root, args)],
-    ["loom_load_learning_state", args => loadLearningState(root, args)],
+    ["loom_load_learning_state", async args => {
+      const loaded = await loadLearningState(root, args);
+      return loaded.state && options.capture !== false
+        ? { ...loaded, capture: await captureRestoredState(root, loaded.state) } : loaded;
+    }],
     ["loom_list_due_reviews", args => listDueReviews(root, args)],
   ]);
   const entries = [
     ...coreCatalog.map(definition => ({ definition, invoke: handlers.get(definition.name) })),
     ...diagramTools(root),
+    ...(options.evaluationTools === true ? evaluationTools(root) : []),
   ];
   const byName = new Map(entries.map(entry => [entry.definition.name, entry.invoke]));
   return {

@@ -1,0 +1,24 @@
+{
+  "kind": "cards",
+  "input": {
+    "prompt": "Which commits all writes?",
+    "choices": [
+      {
+        "key": "a",
+        "label": "Atomic"
+      },
+      {
+        "key": "b",
+        "label": "Partial"
+      }
+    ],
+    "expected": "a",
+    "rationale": "All writes succeed together.",
+    "mix": false
+  },
+  "absent": [
+    "expected",
+    "rationale",
+    "criteria"
+  ]
+}
