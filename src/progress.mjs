@@ -41,10 +41,11 @@ function routeExtensionList(value) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
       throw new Error(`routeExtensions[${index}] must be an object`);
     }
+    const reason = optionalText(entry.reason, `routeExtensions[${index}].reason`);
     return {
       concept: requiredText(entry.concept, `routeExtensions[${index}].concept`),
       dependsOn: textList(entry.dependsOn, `routeExtensions[${index}].dependsOn`) ?? [],
-      reason: optionalText(entry.reason, `routeExtensions[${index}].reason`),
+      ...(reason === undefined ? {} : { reason }),
       addedAt: optionalText(entry.addedAt, `routeExtensions[${index}].addedAt`) ?? new Date().toISOString(),
     };
   });
@@ -64,9 +65,10 @@ function statePath(baseDirectory, sessionId) {
 
 async function readState(path) {
   try {
-    return JSON.parse(await readFile(path, "utf8"));
+    const bytes = await readFile(path);
+    return { state: JSON.parse(bytes), bytes };
   } catch (error) {
-    if (error?.code === "ENOENT") return null;
+    if (error?.code === "ENOENT") return { state: null, bytes: null };
     throw error;
   }
 }
@@ -76,7 +78,7 @@ export async function saveLearningState(baseDirectory, input) {
     assertRecovery(await recoverTransactions(baseDirectory));
     const sessionId = safeSessionId(input.sessionId);
     const destination = await statePath(baseDirectory, sessionId);
-    const previous = await readState(destination);
+    const { state: previous, bytes } = await readState(destination);
     const updateMode = input.updateMode ?? "patch";
     if (!["patch", "snapshot"].includes(updateMode)) throw new Error("updateMode must be patch or snapshot");
     if (Object.hasOwn(input, "expectedRevision") && (previous?.revision ?? null) !== input.expectedRevision) {
@@ -106,7 +108,9 @@ export async function saveLearningState(baseDirectory, input) {
       secured: textList(merged.secured, "secured") ?? [],
       gaps: textList(merged.gaps, "gaps") ?? [],
       evidence: objectValue(merged.evidence, "evidence") ?? {},
-      routeExtensions: routeExtensionList(merged.routeExtensions) ?? [],
+      routeExtensions: updateMode === "patch" && input.routeExtensions === undefined
+        ? previous?.routeExtensions ?? []
+        : routeExtensionList(merged.routeExtensions) ?? [],
       currentStep: optionalText(merged.currentStep, "currentStep"),
       nextStep: requiredText(merged.nextStep, "nextStep"),
       learnerContext: optionalText(merged.learnerContext, "learnerContext"),
@@ -118,8 +122,8 @@ export async function saveLearningState(baseDirectory, input) {
 
     const path = `.concept-loom/sessions/${sessionId}.json`;
     const writes = [{ path, value: state, encoding: "json" }];
-    await addMigrationBackup(baseDirectory, path, previous, writes);
-    await commitTransaction(baseDirectory, { checks: [{ path, expectedHash: await fileHash(destination) }], writes });
+    await addMigrationBackup(baseDirectory, path, previous, bytes, writes);
+    await commitTransaction(baseDirectory, { checks: [{ path, expectedHash: bytes === null ? null : hashBytes(bytes) }], writes });
     return state;
   });
 }
@@ -129,25 +133,25 @@ async function fileHash(path) {
   catch (error) { if (error.code === "ENOENT") return null; throw error; }
 }
 
-async function addMigrationBackup(root, path, previous, writes) {
+async function addMigrationBackup(root, path, previous, bytes, writes) {
   if (!previous || previous.schemaVersion === 3) return;
   if (![1, 2].includes(previous.schemaVersion)) throw new Error(`unsupported learning state schema: ${previous.schemaVersion}`);
   const backup = `${path}.v${previous.schemaVersion}.bak`;
   if (await fileHash(await resolveContainedPath(root, backup)) === null) {
-    writes.unshift({ path: backup, value: await readFile(await resolveContainedPath(root, path), "utf8"), encoding: "utf8" });
+    writes.unshift({ path: backup, value: bytes.toString("utf8"), encoding: "utf8" });
   }
 }
 
 async function loadAndMigrate(root, sessionId) {
   const path = `.concept-loom/sessions/${safeSessionId(sessionId)}.json`;
   const destination = await resolveContainedPath(root, path);
-  const previous = await readState(destination);
+  const { state: previous, bytes } = await readState(destination);
   if (!previous || previous.schemaVersion === 3) return previous;
   const writes = [];
-  await addMigrationBackup(root, path, previous, writes);
+  await addMigrationBackup(root, path, previous, bytes, writes);
   const state = { ...previous, schemaVersion: 3, mode: previous.mode ?? "guided", route: previous.route ?? [], secured: previous.secured ?? [], gaps: previous.gaps ?? [], evidence: previous.evidence ?? {}, routeExtensions: previous.routeExtensions ?? [], revision: previous.revision ?? 0 };
   writes.push({ path, value: state, encoding: "json" });
-  await commitTransaction(root, { checks: [{ path, expectedHash: await fileHash(destination) }], writes });
+  await commitTransaction(root, { checks: [{ path, expectedHash: hashBytes(bytes) }], writes });
   return state;
 }
 
@@ -263,7 +267,7 @@ export async function recordCheckpointAssessment(baseDirectory, input, assessmen
     }
 
     return saveLearningState(baseDirectory, {
-      ...previous,
+      sessionId,
       expectedRevision: input.expectedRevision ?? previous.revision,
       currentStep: input.currentStep ?? previous.currentStep,
       nextStep: requiredText(input.nextStep, "nextStep"),

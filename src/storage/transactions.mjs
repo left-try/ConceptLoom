@@ -42,8 +42,17 @@ function ownerIsDead(owner) {
   catch (error) { return error.code === "ESRCH"; }
 }
 
+async function readLockOwner(lock) {
+  try {
+    const metadata = await fs.lstat(lock);
+    // Older installations used a directory containing owner.json.
+    return readOptional(metadata.isDirectory() ? join(lock, "owner.json") : lock);
+  } catch (error) { if (error.code === "ENOENT") return null; throw error; }
+}
+
 async function reclaimDeadLock(lock, originalBytes, candidate, owner) {
-  let claim = join(lock, "reclaim.json");
+  const claimPrefix = `${lock}.${hashBytes(originalBytes)}`;
+  let claim = `${claimPrefix}.reclaim.json`;
   // An immutable, fully written hard link arbitrates reclamation. A crashed
   // reclaimer is superseded through its own token, never by deleting a live claim.
   for (let depth = 0; depth < 64; depth++) {
@@ -55,11 +64,11 @@ async function reclaimDeadLock(lock, originalBytes, candidate, owner) {
       let earlier;
       try { earlier = bytes && JSON.parse(bytes); } catch { return false; }
       if (!ownerIsDead(earlier) || typeof earlier.token !== "string" || !/^[a-z0-9_-]+$/i.test(earlier.token)) return false;
-      claim = join(lock, `reclaim-${earlier.token}.json`);
+      claim = `${claimPrefix}.${earlier.token}.reclaim.json`;
       continue;
     }
     try {
-      const current = await readOptional(join(lock, "owner.json"));
+      const current = await readLockOwner(lock);
       if (!current?.equals(originalBytes)) return false;
       const stale = `${lock}.${randomUUID()}.stale`;
       await renameLock(lock, stale);
@@ -81,7 +90,6 @@ export async function withWorkspaceLock(root, operation, { timeoutMs = 10000 } =
   const canonicalRoot = await fs.realpath(resolve(root));
   if (lockContext.getStore()?.root === canonicalRoot) return operation();
   const lock = await resolveContainedPath(canonicalRoot, `${storagePath}/lock`, { create: true });
-  const ownerPath = join(lock, "owner.json");
   const owner = { pid: process.pid, hostname: hostname(), token: randomUUID() };
   const candidate = join(dirname(lock), `${owner.token}.owner.tmp`);
   await durableWrite(candidate, JSON.stringify(owner));
@@ -89,13 +97,13 @@ export async function withWorkspaceLock(root, operation, { timeoutMs = 10000 } =
   try {
     while (true) {
       try {
-        await fs.mkdir(lock);
-        try { await fs.link(candidate, ownerPath); }
-        catch (error) { await fs.rm(lock, { recursive: true, force: true }); throw error; }
+        // A hard link publishes the synced ownership bytes atomically and
+        // exclusively. An interruption before publication leaves no public lock.
+        await fs.link(candidate, lock);
         break;
       } catch (error) {
         if (error.code !== "EEXIST") throw error;
-        const data = await readOptional(ownerPath);
+        const data = await readLockOwner(lock);
         let existing;
         try { existing = data && JSON.parse(data); } catch { /* Incomplete metadata is never stolen by time alone. */ }
         if (ownerIsDead(existing) && await reclaimDeadLock(lock, data, candidate, owner)) continue;
@@ -105,7 +113,7 @@ export async function withWorkspaceLock(root, operation, { timeoutMs = 10000 } =
     }
     try { return await lockContext.run({ root: canonicalRoot }, operation); }
     finally {
-      const data = await readOptional(ownerPath);
+      const data = await readLockOwner(lock);
       if (data && JSON.parse(data).token === owner.token) await fs.rm(lock, { recursive: true, force: true });
     }
   } finally { await fs.rm(candidate, { force: true }); }
@@ -123,19 +131,28 @@ async function writeJournal(root, journal) {
   const directory = await journalDirectory(root);
   await atomicWrite(join(directory, `${validateId(journal.id)}.json`), `${JSON.stringify(journal, null, 2)}\n`);
 }
+
+async function resolveWritePath(root, requested, { create = false, errorCode = "INVALID_TRANSACTION" } = {}) {
+  const path = await resolveContainedPath(root, requested, { create });
+  const canonicalRoot = await fs.realpath(resolve(root));
+  const relativePath = relative(canonicalRoot, path).split("\\").join("/");
+  // The storage namespace is reserved in every casing on every filesystem.
+  // Ordinary destination identity still respects the filesystem's casing rules.
+  const reservedKey = relativePath.toLowerCase();
+  if (!relativePath || reservedKey === storagePath || reservedKey.startsWith(`${storagePath}/`)) throw failure(errorCode, "reserved write path");
+  return { path, relativePath, key: process.platform === "win32" ? reservedKey : relativePath };
+}
+
 async function applyJournal(root, journal) {
   if (journal.schemaVersion !== 1 || !Array.isArray(journal.writes) || !Array.isArray(journal.events)) throw failure("INVALID_JOURNAL", "malformed transaction journal");
   validateId(journal.id);
   // Validate every destination before changing any target file.
   for (const write of journal.writes) {
-    const path = await resolveContainedPath(root, write.path);
-    const canonicalRoot = await fs.realpath(resolve(root));
-    const key = relative(canonicalRoot, path).split("\\").join("/").toLowerCase();
-    if (!key || key === storagePath || key.startsWith(`${storagePath}/`)) throw failure("INVALID_JOURNAL", "reserved write path");
+    await resolveWritePath(root, write.path, { errorCode: "INVALID_JOURNAL" });
     if (hashBytes(Buffer.from(write.data, "base64")) !== write.hash) throw failure("INVALID_JOURNAL", "write checksum mismatch");
   }
   for (const write of journal.writes) {
-    const destination = await resolveContainedPath(root, write.path, { create: true });
+    const { path: destination } = await resolveWritePath(root, write.path, { create: true, errorCode: "INVALID_JOURNAL" });
     const bytes = Buffer.from(write.data, "base64");
     const current = await readOptional(destination);
     if (current && hashBytes(current) === write.hash) continue;
@@ -194,10 +211,8 @@ export async function commitTransaction(root, { id = randomUUID(), checks = [], 
     }
     const prepared = [], revisions = {}, destinations = new Set();
     for (const write of writes) {
-      const path = await resolveContainedPath(root, write.path);
-      const relativePath = relative(await fs.realpath(resolve(root)), path).split("\\").join("/");
-      const key = process.platform === "win32" ? relativePath.toLowerCase() : relativePath;
-      if (!relativePath || key === storagePath || key.startsWith(`${storagePath}/`) || destinations.has(key)) throw failure("INVALID_TRANSACTION", "duplicate or reserved write path");
+      const { relativePath, key } = await resolveWritePath(root, write.path);
+      if (destinations.has(key)) throw failure("INVALID_TRANSACTION", "duplicate write path");
       destinations.add(key);
       if (write.encoding !== "json" && write.encoding !== "utf8") throw failure("INVALID_TRANSACTION", "encoding must be json or utf8");
       if (write.encoding === "utf8" && typeof write.value !== "string") throw failure("INVALID_TRANSACTION", "utf8 value must be a string");

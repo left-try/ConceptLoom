@@ -110,6 +110,32 @@ test("live lock times out without stealing and dead owner recovers", async t => 
   assert.equal(await readFile(join(root, "alive.txt"), "utf8"), "recovered");
 });
 
+for (const phase of ["before", "after"]) {
+  test(`lock publication interrupted ${phase} ownership does not strand recovery`, async t => {
+    const root = await fixture(t);
+    const source = `import fs from 'node:fs/promises'; import {join} from 'node:path';
+      const lock = join(process.argv[1], '.concept-loom/storage/lock'); const original = fs.link;
+      fs.link = async (...args) => { if(args[1] === lock || args[1] === join(lock, 'owner.json')) {if(process.argv[2] === 'after') await original(...args); process.exit(74);} return original(...args); };
+      const {withWorkspaceLock} = await import(${JSON.stringify(transactionsUrl)}); await withWorkspaceLock(process.argv[1], async () => {});`;
+    const interrupted = await child(source, [root, phase]);
+    assert.equal(interrupted.code, 74, interrupted.stderr);
+    const { withWorkspaceLock, commitTransaction } = await storage();
+    await withWorkspaceLock(root, () => commitTransaction(root, { writes: [{ path: "recovered.txt", value: "available", encoding: "utf8" }] }), { timeoutMs: 80 });
+    assert.equal(await readFile(join(root, "recovered.txt"), "utf8"), "available");
+  });
+}
+
+test("unverifiable ownerless legacy lock is never stolen", async t => {
+  const root = await fixture(t);
+  const directory = join(root, ".concept-loom/storage/lock");
+  await mkdir(directory, { recursive: true });
+  const { withWorkspaceLock } = await storage();
+  await assert.rejects(withWorkspaceLock(root, async () => {}, { timeoutMs: 30 }), { code: "WORKSPACE_LOCKED" });
+  assert.deepEqual(await fsEntries(directory), []);
+});
+
+async function fsEntries(path) { return (await import("node:fs/promises")).readdir(path); }
+
 test("concurrent notebook entries preserve both bodies", async t => {
   const root = await fixture(t);
   await beginNotebook(root, { path: "notes.md" });
@@ -152,4 +178,24 @@ test("malformed recovery journal fails visibly and cannot overwrite lock metadat
   assert.equal(diagnostics[0].code, "TRANSACTION_RECOVERY_FAILED");
   await assert.rejects(commitTransaction(root, { writes: [{ path: "never.txt", value: "no", encoding: "utf8" }] }), { code: "TRANSACTION_RECOVERY_FAILED" });
   await assert.rejects(readFile(join(root, "never.txt")), { code: "ENOENT" });
+});
+
+test("case-sensitive reserved casing is rejected before journal preparation", async t => {
+  const root = await fixture(t);
+  const source = `import fs from 'node:fs/promises'; import {resolve} from 'node:path'; import {syncBuiltinESMExports} from 'node:module';
+    if(process.platform === 'win32') {
+      // Model the case-preserving realpath result of a case-sensitive filesystem.
+      fs.realpath = async path => { await fs.lstat(path); return resolve(path); };
+      Object.defineProperty(process, 'platform', {value:'linux'}); syncBuiltinESMExports();
+    }
+    const {commitTransaction} = await import(${JSON.stringify(transactionsUrl)});
+    try { await commitTransaction(process.argv[1], {id:'case-reserved', writes:[{path:'.CONCEPT-LOOM/STORAGE/rejected.txt', value:'no', encoding:'utf8'}]}); console.log('ACCEPTED'); } catch(error) {console.log(error.code);}`;
+  const result = await child(source, [root]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.deepEqual(await fsEntries(join(root, ".concept-loom/storage/transactions")), []);
+  assert.equal(result.stdout.trim(), "INVALID_TRANSACTION");
+  const { recoverTransactions, commitTransaction } = await storage();
+  assert.deepEqual(await recoverTransactions(root), []);
+  await commitTransaction(root, { writes: [{ path: "valid.txt", value: "still available", encoding: "utf8" }] });
+  assert.equal(await readFile(join(root, "valid.txt"), "utf8"), "still available");
 });

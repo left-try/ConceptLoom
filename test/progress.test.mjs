@@ -6,6 +6,28 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { listDueReviews, loadLearningState, recordCheckpointAssessment, saveLearningState } from "../src/progress.mjs";
 
+for (const [operation, schemaVersion] of [["patch", 3], ["patch", 2], ["migration", 1]]) {
+  test(`${operation} schema ${schemaVersion} guards the bytes used to build state`, async () => {
+    const root = await mkdtemp(join(tmpdir(), "loom-read-race-"));
+    const directory = join(root, ".concept-loom/sessions");
+    await mkdir(directory, { recursive: true });
+    const file = join(directory, "race.json");
+    const original = { schemaVersion, sessionId: "race", topic: "TLS", goal: "Learn", phase: "build", nextStep: "Check", route: ["Original"], revision: 1 };
+    const editedBytes = JSON.stringify({ ...original, route: ["External edit"], revision: 2 });
+    await writeFile(file, JSON.stringify(original));
+    const source = `import fs from 'node:fs/promises'; import {syncBuiltinESMExports} from 'node:module';
+      const originalRead = fs.readFile; let changed = false;
+      fs.readFile = async (...args) => { const bytes = await originalRead(...args); if(!changed && String(args[0]) === process.argv[2]) {changed = true; await fs.writeFile(process.argv[2], process.argv[3]);} return bytes; };
+      syncBuiltinESMExports(); const {saveLearningState, loadLearningState} = await import(${JSON.stringify(new URL("../src/progress.mjs", import.meta.url).href)});
+      try { if(process.argv[4] === 'migration') await loadLearningState(process.argv[1], {sessionId:'race'}); else await saveLearningState(process.argv[1], {sessionId:'race', topic:'TLS', goal:'Learn', phase:'build', nextStep:'Continue'}); console.log('ACCEPTED'); } catch(error) {console.log(error.code);} `;
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", source, root, file, editedBytes, operation], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout.trim(), "HASH_CONFLICT");
+    assert.equal(await readFile(file, "utf8"), editedBytes);
+    assert.deepEqual((await readdir(directory)).filter(name => name.includes(".bak")), []);
+  });
+}
+
 test("patch preserves omitted arrays", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-patch-"));
   const original = await saveLearningState(root, { sessionId: "patch", topic: "TLS", goal: "Learn", phase: "build", route: ["Hello", "JA4"], secured: ["Hello"], gaps: ["JA4"], currentStep: "Hello", notebookPath: "notes.md", learnerContext: "Networking", nextStep: "Check", evidence: { Hello: { attempts: 2 } }, routeExtensions: [{ concept: "TCP" }] });
@@ -15,6 +37,22 @@ test("patch preserves omitted arrays", async () => {
   const sparse = await saveLearningState(root, { sessionId: "patch", nextStep: "Sparse patch" });
   assert.equal(sparse.goal, "Learn");
   assert.deepEqual(sparse.route, ["Hello", "JA4"]);
+});
+
+test("omitted routeExtensions preserve unknown fields and absent timestamps exactly", async () => {
+  const root = await mkdtemp(join(tmpdir(), "loom-extension-preserve-"));
+  const directory = join(root, ".concept-loom/sessions");
+  await mkdir(directory, { recursive: true });
+  const extensions = [{ concept: "TCP", dependsOn: ["IP"], futureTag: { source: "learner" } }, { concept: "DNS", addedAt: "2026-01-01T00:00:00.000Z", customEvidence: ["lesson-7"] }];
+  await writeFile(join(directory, "extensions.json"), JSON.stringify({ schemaVersion: 3, sessionId: "extensions", topic: "TLS", goal: "Learn", phase: "build", nextStep: "Check", revision: 1, routeExtensions: extensions }));
+  const patched = await saveLearningState(root, { sessionId: "extensions", nextStep: "Continue" });
+  assert.deepEqual(patched.routeExtensions, extensions);
+  const assessed = await recordCheckpointAssessment(root, { sessionId: "extensions", nextStep: "After assessment" }, { outcome: "accurate", selected: ["tls"] });
+  assert.deepEqual(assessed.routeExtensions, extensions);
+  const explicit = await saveLearningState(root, { sessionId: "extensions", routeExtensions: [{ concept: " TCP ", reason: " New prerequisite " }] });
+  assert.equal(explicit.routeExtensions[0].concept, "TCP");
+  assert.equal(explicit.routeExtensions[0].reason, "New prerequisite");
+  assert.match(explicit.routeExtensions[0].addedAt, /^\d{4}-\d{2}-\d{2}T/);
 });
 
 test("stale revision changes nothing", async () => {
