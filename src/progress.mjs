@@ -64,10 +64,25 @@ function statePath(baseDirectory, sessionId) {
   return resolveContainedPath(baseDirectory, `.concept-loom/sessions/${safeSessionId(sessionId)}.json`);
 }
 
+export function publicLearningState(state) {
+  if (!state) return state;
+  const publicState = { ...state };
+  if (state.lastCheckpoint) publicState.lastCheckpoint = publicCheckpointAssessment(state.lastCheckpoint);
+  if (state.evidence) {
+    publicState.evidence = Object.fromEntries(Object.entries(state.evidence).map(([concept, record]) => [
+      concept,
+      Array.isArray(record?.history)
+        ? { ...record, history: record.history.map(attempt => publicCheckpointAssessment(attempt)) }
+        : record,
+    ]));
+  }
+  return publicState;
+}
+
 async function readState(path) {
   try {
     const bytes = await readFile(path);
-    return { state: JSON.parse(bytes), bytes };
+    return { state: publicLearningState(JSON.parse(bytes)), bytes };
   } catch (error) {
     if (error?.code === "ENOENT") return { state: null, bytes: null };
     throw error;
@@ -96,7 +111,7 @@ export async function saveLearningState(baseDirectory, input) {
     if (!MODES.has(mode)) throw new Error(`mode must be one of: ${[...MODES].join(", ")}`);
 
     const now = new Date().toISOString();
-    const state = {
+    const state = publicLearningState({
       ...previous,
       schemaVersion: 3,
       sessionId,
@@ -119,7 +134,7 @@ export async function saveLearningState(baseDirectory, input) {
       createdAt: previous?.createdAt ?? now,
       updatedAt: now,
       revision: (previous?.revision ?? 0) + 1,
-    };
+    });
 
     const path = `.concept-loom/sessions/${sessionId}.json`;
     const writes = [{ path, value: state, encoding: "json" }];

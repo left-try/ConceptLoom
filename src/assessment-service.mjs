@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { consumeCheckpoint, evaluateCheckpoint, publicCheckpointAssessment } from "./checkpoints.mjs";
-import { checkpointAssessmentPatch, loadLearningState } from "./progress.mjs";
+import { checkpointAssessmentPatch, loadLearningState, publicLearningState } from "./progress.mjs";
 import { resolveContainedPath } from "./storage/paths.mjs";
 import { assertRecovery, commitTransaction, hashBytes, recoverTransactions, withWorkspaceLock } from "./storage/transactions.mjs";
 
@@ -61,7 +61,7 @@ export async function assessAndPersist(root, input) {
         throw Object.assign(new Error("ATTEMPT_CONFLICT: attemptId was already used with different input"), { code: "ATTEMPT_CONFLICT" });
       }
       consumeCheckpoint(token);
-      return { assessment: publicCheckpointAssessment(existing.assessment), learningState: existing.learningState, attemptId };
+      return { assessment: publicCheckpointAssessment(existing.assessment), learningState: publicLearningState(existing.learningState), attemptId };
     }
 
     // A different tool may have recovered an interrupted commit while this
@@ -77,7 +77,7 @@ export async function assessAndPersist(root, input) {
     await loadLearningState(root, { sessionId });
     const statePath = `.concept-loom/sessions/${sessionId}.json`;
     const bytes = await readFile(await resolveContainedPath(root, statePath));
-    const previous = JSON.parse(bytes);
+    const previous = publicLearningState(JSON.parse(bytes));
     if (Object.hasOwn(request, "expectedRevision") && previous.revision !== request.expectedRevision) {
       throw Object.assign(new Error("REVISION_CONFLICT: learning state changed"), { code: "REVISION_CONFLICT" });
     }

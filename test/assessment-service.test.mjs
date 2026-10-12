@@ -38,6 +38,26 @@ function assertPublic(value) {
   for (const key of ["expected", "rationale", "criteria"]) assert.equal(Object.hasOwn(value, key), false, `private ${key} must stay in the receipt`);
   for (const nested of Object.values(value)) assertPublic(nested);
 }
+async function legacyFixture(t) {
+  const assess = await service(), root = await fixture(t), input = request(card());
+  await assess(root, input);
+  const saved = await receipt(root);
+  const legacyAttempt = { ...saved.learningState.lastCheckpoint, expected: ["a"], rationale: "Private legacy rationale", criteria: ["Private legacy criterion"], customMarker: "keep me" };
+  const legacyState = {
+    ...saved.learningState,
+    lastCheckpoint: legacyAttempt,
+    evidence: {
+      ...saved.learningState.evidence,
+      Atomicity: { ...saved.learningState.evidence.Atomicity, history: [legacyAttempt] },
+      Other: { attempts: 1, history: [{ ...legacyAttempt, attemptId: "older" }], customField: { retained: true } },
+    },
+  };
+  const sessionPath = join(root, ".concept-loom/sessions/lesson.json");
+  const receiptPath = join(root, ".concept-loom/assessments/attempts/attempt-1.json");
+  await fs.writeFile(sessionPath, JSON.stringify(legacyState));
+  await fs.writeFile(receiptPath, JSON.stringify({ ...saved, learningState: legacyState }));
+  return { assess, root, input, sessionPath, receiptPath, sessionBytes: await fs.readFile(sessionPath), receiptBytes: await fs.readFile(receiptPath) };
+}
 function child(source, args) {
   return new Promise((resolve, reject) => {
     const runner = spawn(process.execPath, ["--input-type=module", "-e", source, ...args]);
@@ -49,6 +69,63 @@ function child(source, args) {
   });
 }
 test.beforeEach(() => resetCheckpointsForTests());
+
+test("loads a pre-fix session without exposing its private checkpoint records", async t => {
+  const { root, sessionPath, sessionBytes } = await legacyFixture(t);
+  for (const input of [{ sessionId: "lesson" }, {}]) {
+    const loaded = await loadLearningState(root, input);
+    assertPublic(loaded);
+    assert.equal(loaded.state.revision, 2);
+    assert.equal(loaded.state.lastCheckpoint.customMarker, "keep me");
+    assert.deepEqual(loaded.state.evidence.Other.customField, { retained: true });
+    assert.equal(loaded.state.evidence.Atomicity.history[0].confidence, 80);
+  }
+  assert.deepEqual(await fs.readFile(sessionPath), sessionBytes, "read sanitation must not rewrite the session");
+});
+
+test("replays a pre-fix receipt without exposing or changing its private details", async t => {
+  const { assess, root, input, receiptPath, receiptBytes } = await legacyFixture(t);
+  resetCheckpointsForTests();
+  const replay = await assess(root, input);
+  assertPublic(replay);
+  assert.equal(replay.learningState.revision, 2);
+  assert.equal(replay.learningState.evidence.Atomicity.history[0].customMarker, "keep me");
+  assert.deepEqual(await fs.readFile(receiptPath), receiptBytes);
+  const privateReceipt = await receipt(root);
+  assert.deepEqual(privateReceipt.assessment.expected, ["a"]);
+  assert.equal(privateReceipt.learningState.lastCheckpoint.rationale, "Private legacy rationale");
+});
+
+test("new attempts clean pre-fix histories across all concepts", async t => {
+  const { assess, root, receiptPath, receiptBytes } = await legacyFixture(t);
+  const result = await assess(root, request(card(), { attemptId: "upgrade" }));
+  assertPublic(result);
+  const disk = JSON.parse(await fs.readFile(join(root, ".concept-loom/sessions/lesson.json"), "utf8"));
+  assertPublic(disk);
+  assert.equal(disk.evidence.Atomicity.history.length, 2);
+  assert.equal(disk.evidence.Atomicity.history[0].customMarker, "keep me");
+  assert.equal(disk.evidence.Other.history[0].attemptId, "older");
+  assert.deepEqual(disk.evidence.Other.customField, { retained: true });
+  assert.deepEqual(await fs.readFile(receiptPath), receiptBytes);
+});
+
+test("ordinary patches clean pre-fix checkpoint records while retaining metadata", async t => {
+  const { root, receiptPath, receiptBytes } = await legacyFixture(t);
+  const patched = await saveLearningState(root, { sessionId: "lesson", nextStep: "After upgrade" });
+  assertPublic(patched);
+  assertPublic(JSON.parse(await fs.readFile(join(root, ".concept-loom/sessions/lesson.json"), "utf8")));
+  assert.equal(patched.evidence.Atomicity.history[0].customMarker, "keep me");
+  assert.deepEqual(await fs.readFile(receiptPath), receiptBytes);
+});
+
+test("explicit state writes omit private fields in submitted checkpoint records", async t => {
+  const { root, sessionPath, receiptPath, receiptBytes } = await legacyFixture(t);
+  const previous = JSON.parse(await fs.readFile(sessionPath, "utf8"));
+  const saved = await saveLearningState(root, { sessionId: "lesson", lastCheckpoint: previous.lastCheckpoint, evidence: previous.evidence });
+  assertPublic(saved);
+  assertPublic(JSON.parse(await fs.readFile(sessionPath, "utf8")));
+  assert.deepEqual(await fs.readFile(receiptPath), receiptBytes);
+});
 
 for (const format of ["choice", "free-recall"]) {
   test(`ordinary session and service response omit private ${format} grading details`, async t => {
