@@ -9,7 +9,10 @@
 
 ## 1. Создайте учебную папку
 
+Нужны Node.js 20+, npm и Codex CLI. Выполните установку зависимостей и настройку адаптера из клонированного репозитория Concept Loom:
+
 ```bash
+npm ci --ignore-scripts
 node scripts/setup.mjs codex --target /путь/к/учебной-папке
 cd /путь/к/учебной-папке
 codex

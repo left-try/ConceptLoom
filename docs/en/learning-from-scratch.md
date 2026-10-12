@@ -9,7 +9,10 @@ Use this workflow when you have a subject in mind but no book, course, or syllab
 
 ## 1. Create a workspace
 
+You need Node.js 20+, npm and Codex CLI. Run the dependency installation and adapter setup from the cloned Concept Loom repository:
+
 ```bash
+npm ci --ignore-scripts
 node scripts/setup.mjs codex --target /path/to/learning-workspace
 cd /path/to/learning-workspace
 codex

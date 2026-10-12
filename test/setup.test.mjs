@@ -9,18 +9,20 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-test("documented quick start installs locked dependencies in a clean checkout before host setup", async t => {
+for (const documentPath of ["README.md", "docs/en/learning-from-scratch.md", "docs/ru/learning-from-scratch.md"]) {
+test(`${documentPath} installs locked dependencies in a clean checkout before host setup`, async t => {
   const checkout = await mkdtemp(join(tmpdir(), "loom-clean-install-"));
   t.after(() => rm(checkout, { recursive: true, force: true }));
-  for (const path of ["package.json", "package-lock.json", "README.md", "scripts", "src", "prompts", "shared", "adapters"]) {
+  for (const path of ["package.json", "package-lock.json", "README.md", "docs", "scripts", "src", "prompts", "shared", "adapters"]) {
     await cp(join(projectRoot, path), join(checkout, path), { recursive: true });
   }
   await assert.rejects(stat(join(checkout, "node_modules")), { code: "ENOENT" });
-  const readme = (await readFile(join(checkout, "README.md"), "utf8")).replace(/\r\n|\r/g, "\n");
-  const quickStart = readme.split("## Quick start with Codex")[1].split("## Other clients")[0];
-  const commands = quickStart.match(/```bash\n([\s\S]*?)```/)[1].split("\n");
+  const document = (await readFile(join(checkout, documentPath), "utf8")).replace(/\r\n|\r/g, "\n");
+  const commands = document.match(/```bash\n([\s\S]*?)```/)[1].split("\n");
+  const setupIndex = commands.findIndex(line => /^node scripts\/setup\.mjs(?:\s|$)/.test(line));
+  assert.notEqual(setupIndex, -1, `${documentPath} must include adapter setup`);
   const npmCli = process.env.npm_execpath ?? join(dirname(process.execPath), "node_modules/npm/bin/npm-cli.js");
-  for (const command of commands.filter(line => /^npm ci(?:\s|$)/.test(line))) {
+  for (const command of commands.slice(0, setupIndex).filter(line => /^npm ci(?:\s|$)/.test(line))) {
     const result = spawnSync(process.execPath, [npmCli, ...command.split(/\s+/).slice(1)], {
       cwd: checkout, encoding: "utf8", env: { ...process.env, npm_config_offline: "true", npm_config_audit: "false", npm_config_fund: "false" },
     });
@@ -29,9 +31,12 @@ test("documented quick start installs locked dependencies in a clean checkout be
   // A nested fixture can otherwise accidentally resolve the parent checkout's dependencies.
   const requireFromCheckout = createRequire(join(checkout, "package.json"));
   for (const dependency of ["yaml", "ajv"]) {
-    assert.ok(requireFromCheckout.resolve(dependency).startsWith(join(checkout, "node_modules")), `${dependency} was not installed by the documented quick start`);
+    assert.ok(requireFromCheckout.resolve(dependency).startsWith(join(checkout, "node_modules")), `${documentPath}: ${dependency} was not installed before adapter setup`);
   }
-  for (const [host, hidden] of [["codex", ".codex"], ["claude-code", ".claude"], ["opencode", ".opencode"], ["deepseek-harness", ".dsh"]]) {
+  const hosts = documentPath === "README.md"
+    ? [["codex", ".codex"], ["claude-code", ".claude"], ["opencode", ".opencode"], ["deepseek-harness", ".dsh"]]
+    : [["codex", ".codex"]];
+  for (const [host, hidden] of hosts) {
     const target = join(checkout, `learning-${host}`);
     const result = spawnSync(process.execPath, [join(checkout, "scripts/setup.mjs"), host, "--target", target, "--skip-mcp"], { cwd: checkout, encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
@@ -39,6 +44,7 @@ test("documented quick start installs locked dependencies in a clean checkout be
     assert.equal(installed, await readFile(join(checkout, "adapters", host, hidden, "skills/concept-coach/references/coaching-reference.md"), "utf8"));
   }
 });
+}
 
 test("Codex installer registers the explicit workspace", async () => {
   const target = await mkdtemp(join(tmpdir(), "concept-loom-codex-"));
