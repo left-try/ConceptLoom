@@ -1,5 +1,6 @@
-import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { readFile, readdir } from "node:fs/promises";
+import { resolveContainedPath } from "./storage/paths.mjs";
+import { assertRecovery, commitTransaction, hashBytes, recoverTransactions, withWorkspaceLock } from "./storage/transactions.mjs";
 
 const PHASES = new Set(["locate", "weave", "build", "transfer", "review", "complete"]);
 const MODES = new Set(["guided", "practice", "review", "challenge"]);
@@ -57,12 +58,8 @@ function safeSessionId(value) {
   return id;
 }
 
-function storageDirectory(baseDirectory) {
-  return resolve(baseDirectory, ".concept-loom", "sessions");
-}
-
 function statePath(baseDirectory, sessionId) {
-  return join(storageDirectory(baseDirectory), `${safeSessionId(sessionId)}.json`);
+  return resolveContainedPath(baseDirectory, `.concept-loom/sessions/${safeSessionId(sessionId)}.json`);
 }
 
 async function readState(path) {
@@ -75,75 +72,121 @@ async function readState(path) {
 }
 
 export async function saveLearningState(baseDirectory, input) {
-  const sessionId = safeSessionId(input.sessionId);
-  const destination = statePath(baseDirectory, sessionId);
+  return withWorkspaceLock(baseDirectory, async () => {
+    assertRecovery(await recoverTransactions(baseDirectory));
+    const sessionId = safeSessionId(input.sessionId);
+    const destination = await statePath(baseDirectory, sessionId);
+    const previous = await readState(destination);
+    const updateMode = input.updateMode ?? "patch";
+    if (!["patch", "snapshot"].includes(updateMode)) throw new Error("updateMode must be patch or snapshot");
+    if (Object.hasOwn(input, "expectedRevision") && (previous?.revision ?? null) !== input.expectedRevision) {
+      throw Object.assign(new Error("REVISION_CONFLICT: learning state changed"), { code: "REVISION_CONFLICT" });
+    }
+    const merged = { ...previous, ...Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) };
+    if (updateMode === "snapshot") {
+      for (const key of ["topic", "goal", "phase", "nextStep"]) requiredText(input[key], key);
+      for (const key of ["route", "secured", "gaps", "routeExtensions"]) merged[key] = input[key] ?? [];
+    }
+    const phase = requiredText(merged.phase, "phase").toLowerCase();
+    if (!PHASES.has(phase)) throw new Error(`phase must be one of: ${[...PHASES].join(", ")}`);
+    const mode = optionalText(merged.mode, "mode")?.toLowerCase() ?? "guided";
+    if (!MODES.has(mode)) throw new Error(`mode must be one of: ${[...MODES].join(", ")}`);
+
+    const now = new Date().toISOString();
+    const state = {
+      ...previous,
+      schemaVersion: 3,
+      sessionId,
+      topic: requiredText(merged.topic, "topic"),
+      goal: requiredText(merged.goal, "goal"),
+      phase,
+      mode,
+      notebookPath: optionalText(merged.notebookPath, "notebookPath"),
+      route: textList(merged.route, "route") ?? [],
+      secured: textList(merged.secured, "secured") ?? [],
+      gaps: textList(merged.gaps, "gaps") ?? [],
+      evidence: objectValue(merged.evidence, "evidence") ?? {},
+      routeExtensions: routeExtensionList(merged.routeExtensions) ?? [],
+      currentStep: optionalText(merged.currentStep, "currentStep"),
+      nextStep: requiredText(merged.nextStep, "nextStep"),
+      learnerContext: optionalText(merged.learnerContext, "learnerContext"),
+      lastCheckpoint: merged.lastCheckpoint,
+      createdAt: previous?.createdAt ?? now,
+      updatedAt: now,
+      revision: (previous?.revision ?? 0) + 1,
+    };
+
+    const path = `.concept-loom/sessions/${sessionId}.json`;
+    const writes = [{ path, value: state, encoding: "json" }];
+    await addMigrationBackup(baseDirectory, path, previous, writes);
+    await commitTransaction(baseDirectory, { checks: [{ path, expectedHash: await fileHash(destination) }], writes });
+    return state;
+  });
+}
+
+async function fileHash(path) {
+  try { return hashBytes(await readFile(path)); }
+  catch (error) { if (error.code === "ENOENT") return null; throw error; }
+}
+
+async function addMigrationBackup(root, path, previous, writes) {
+  if (!previous || previous.schemaVersion === 3) return;
+  if (![1, 2].includes(previous.schemaVersion)) throw new Error(`unsupported learning state schema: ${previous.schemaVersion}`);
+  const backup = `${path}.v${previous.schemaVersion}.bak`;
+  if (await fileHash(await resolveContainedPath(root, backup)) === null) {
+    writes.unshift({ path: backup, value: await readFile(await resolveContainedPath(root, path), "utf8"), encoding: "utf8" });
+  }
+}
+
+async function loadAndMigrate(root, sessionId) {
+  const path = `.concept-loom/sessions/${safeSessionId(sessionId)}.json`;
+  const destination = await resolveContainedPath(root, path);
   const previous = await readState(destination);
-  const phase = requiredText(input.phase, "phase").toLowerCase();
-  if (!PHASES.has(phase)) throw new Error(`phase must be one of: ${[...PHASES].join(", ")}`);
-  const mode = optionalText(input.mode, "mode")?.toLowerCase() ?? previous?.mode ?? "guided";
-  if (!MODES.has(mode)) throw new Error(`mode must be one of: ${[...MODES].join(", ")}`);
-
-  const now = new Date().toISOString();
-  const state = {
-    schemaVersion: 2,
-    sessionId,
-    topic: requiredText(input.topic, "topic"),
-    goal: requiredText(input.goal, "goal"),
-    phase,
-    mode,
-    notebookPath: optionalText(input.notebookPath, "notebookPath"),
-    route: textList(input.route, "route") ?? [],
-    secured: textList(input.secured, "secured") ?? [],
-    gaps: textList(input.gaps, "gaps") ?? [],
-    evidence: objectValue(input.evidence, "evidence") ?? previous?.evidence ?? {},
-    routeExtensions: routeExtensionList(input.routeExtensions) ?? previous?.routeExtensions ?? [],
-    currentStep: optionalText(input.currentStep, "currentStep"),
-    nextStep: requiredText(input.nextStep, "nextStep"),
-    learnerContext: optionalText(input.learnerContext, "learnerContext"),
-    lastCheckpoint: input.lastCheckpoint ?? previous?.lastCheckpoint,
-    createdAt: previous?.createdAt ?? now,
-    updatedAt: now,
-    revision: (previous?.revision ?? 0) + 1,
-  };
-
-  await mkdir(dirname(destination), { recursive: true });
-  const temporary = `${destination}.${process.pid}.tmp`;
-  await writeFile(temporary, `${JSON.stringify(state, null, 2)}\n`, "utf8");
-  await rename(temporary, destination);
+  if (!previous || previous.schemaVersion === 3) return previous;
+  const writes = [];
+  await addMigrationBackup(root, path, previous, writes);
+  const state = { ...previous, schemaVersion: 3, mode: previous.mode ?? "guided", route: previous.route ?? [], secured: previous.secured ?? [], gaps: previous.gaps ?? [], evidence: previous.evidence ?? {}, routeExtensions: previous.routeExtensions ?? [], revision: previous.revision ?? 0 };
+  writes.push({ path, value: state, encoding: "json" });
+  await commitTransaction(root, { checks: [{ path, expectedHash: await fileHash(destination) }], writes });
   return state;
 }
 
 export async function loadLearningState(baseDirectory, input = {}) {
-  if (input.sessionId) {
-    const sessionId = safeSessionId(input.sessionId);
-    const state = await readState(statePath(baseDirectory, sessionId));
-    if (!state) throw new Error(`learning session '${sessionId}' was not found`);
-    return { state };
-  }
+  return withWorkspaceLock(baseDirectory, async () => {
+    assertRecovery(await recoverTransactions(baseDirectory));
+    if (input.sessionId) {
+      const sessionId = safeSessionId(input.sessionId);
+      const state = await loadAndMigrate(baseDirectory, sessionId);
+      if (!state) throw new Error(`learning session '${sessionId}' was not found`);
+      return { state };
+    }
 
-  const directory = storageDirectory(baseDirectory);
-  let names;
-  try {
-    names = (await readdir(directory)).filter((name) => name.endsWith(".json"));
-  } catch (error) {
-    if (error?.code === "ENOENT") return { state: null, sessions: [] };
-    throw error;
-  }
+    const directory = await resolveContainedPath(baseDirectory, ".concept-loom/sessions");
+    let names;
+    try {
+      names = (await readdir(directory)).filter((name) => name.endsWith(".json"));
+    } catch (error) {
+      if (error?.code === "ENOENT") return { state: null, sessions: [] };
+      throw error;
+    }
 
-  const states = (await Promise.all(names.map((name) => readState(join(directory, name)))))
-    .filter(Boolean)
-    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-  return {
-    state: states[0] ?? null,
-    sessions: states.map(({ sessionId, topic, goal, phase, nextStep, updatedAt }) => ({
-      sessionId,
-      topic,
-      goal,
-      phase,
-      nextStep,
-      updatedAt,
-    })),
-  };
+    const states = [];
+    for (const name of names) states.push(await loadAndMigrate(baseDirectory, name.slice(0, -5)));
+    const sorted = states
+      .filter(Boolean)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+    return {
+      state: sorted[0] ?? null,
+      sessions: sorted.map(({ sessionId, topic, goal, phase, nextStep, updatedAt }) => ({
+        sessionId,
+        topic,
+        goal,
+        phase,
+        nextStep,
+        updatedAt,
+      })),
+    };
+  });
 }
 
 export async function listDueReviews(baseDirectory, input = {}) {
@@ -177,63 +220,66 @@ function addUnique(items, value) {
 }
 
 export async function recordCheckpointAssessment(baseDirectory, input, assessment) {
-  const sessionId = safeSessionId(input.sessionId);
-  const { state: previous } = await loadLearningState(baseDirectory, { sessionId });
-  const securedConnection = optionalText(input.securedConnection, "securedConnection");
-  const gap = optionalText(input.gap, "gap");
-  const secured = assessment.outcome === "accurate"
-    ? addUnique(previous.secured ?? [], securedConnection)
-    : previous.secured ?? [];
-  const gaps = assessment.outcome === "knowledge-gap"
-    ? addUnique(previous.gaps ?? [], gap ?? input.currentStep ?? previous.currentStep)
-    : previous.gaps ?? [];
-  const evidenceConcept = optionalText(input.evidenceConcept, "evidenceConcept")
-    ?? securedConnection
-    ?? input.currentStep
-    ?? previous.currentStep;
-  const evidence = { ...(previous.evidence ?? {}) };
-  if (evidenceConcept) {
-    const earlier = evidence[evidenceConcept] ?? {};
-    const format = assessment.format ?? "choice";
-    const dimension = CHECKPOINT_DIMENSIONS[format] ?? "recognition";
-    const dimensionResult = assessment.outcome === "accurate" ? "demonstrated" : "needs-work";
-    const consecutiveSuccesses = assessment.outcome === "accurate" ? (earlier.consecutiveSuccesses ?? 0) + 1 : 0;
-    evidence[evidenceConcept] = {
-      ...earlier,
-      attempts: (earlier.attempts ?? 0) + 1,
-      successes: (earlier.successes ?? 0) + (assessment.outcome === "accurate" ? 1 : 0),
-      consecutiveSuccesses,
-      dimensions: { ...(earlier.dimensions ?? {}), [dimension]: dimensionResult },
-      lastFormat: format,
-      lastOutcome: assessment.outcome,
-      lastConfidence: assessment.confidence,
-      lastCalibration: assessment.calibration,
-      hintUsed: input.hintUsed === true,
-      transferPassed: earlier.transferPassed === true || (format === "transfer" && assessment.outcome === "accurate"),
-      lastAttemptAt: new Date().toISOString(),
-      lastSuccessfulRetrieval: assessment.outcome === "accurate"
-        ? new Date().toISOString()
-        : earlier.lastSuccessfulRetrieval,
-      reviewAfter: nextReviewDate(consecutiveSuccesses, assessment.outcome),
-    };
-  }
+  return withWorkspaceLock(baseDirectory, async () => {
+    const sessionId = safeSessionId(input.sessionId);
+    const { state: previous } = await loadLearningState(baseDirectory, { sessionId });
+    const securedConnection = optionalText(input.securedConnection, "securedConnection");
+    const gap = optionalText(input.gap, "gap");
+    const secured = assessment.outcome === "accurate"
+      ? addUnique(previous.secured ?? [], securedConnection)
+      : previous.secured ?? [];
+    const gaps = assessment.outcome === "knowledge-gap"
+      ? addUnique(previous.gaps ?? [], gap ?? input.currentStep ?? previous.currentStep)
+      : previous.gaps ?? [];
+    const evidenceConcept = optionalText(input.evidenceConcept, "evidenceConcept")
+      ?? securedConnection
+      ?? input.currentStep
+      ?? previous.currentStep;
+    const evidence = { ...(previous.evidence ?? {}) };
+    if (evidenceConcept) {
+      const earlier = evidence[evidenceConcept] ?? {};
+      const format = assessment.format ?? "choice";
+      const dimension = CHECKPOINT_DIMENSIONS[format] ?? "recognition";
+      const dimensionResult = assessment.outcome === "accurate" ? "demonstrated" : "needs-work";
+      const consecutiveSuccesses = assessment.outcome === "accurate" ? (earlier.consecutiveSuccesses ?? 0) + 1 : 0;
+      evidence[evidenceConcept] = {
+        ...earlier,
+        attempts: (earlier.attempts ?? 0) + 1,
+        successes: (earlier.successes ?? 0) + (assessment.outcome === "accurate" ? 1 : 0),
+        consecutiveSuccesses,
+        dimensions: { ...(earlier.dimensions ?? {}), [dimension]: dimensionResult },
+        lastFormat: format,
+        lastOutcome: assessment.outcome,
+        lastConfidence: assessment.confidence,
+        lastCalibration: assessment.calibration,
+        hintUsed: input.hintUsed === true,
+        transferPassed: earlier.transferPassed === true || (format === "transfer" && assessment.outcome === "accurate"),
+        lastAttemptAt: new Date().toISOString(),
+        lastSuccessfulRetrieval: assessment.outcome === "accurate"
+          ? new Date().toISOString()
+          : earlier.lastSuccessfulRetrieval,
+        reviewAfter: nextReviewDate(consecutiveSuccesses, assessment.outcome),
+      };
+    }
 
-  return saveLearningState(baseDirectory, {
-    ...previous,
-    currentStep: input.currentStep ?? previous.currentStep,
-    nextStep: requiredText(input.nextStep, "nextStep"),
-    secured,
-    gaps,
-    evidence,
-    lastCheckpoint: {
-      outcome: assessment.outcome,
-      selected: assessment.selected,
-      response: assessment.response,
-      format: assessment.format ?? "choice",
-      confidence: assessment.confidence,
-      calibration: assessment.calibration,
-      assessedAt: new Date().toISOString(),
-    },
+    return saveLearningState(baseDirectory, {
+      ...previous,
+      expectedRevision: input.expectedRevision ?? previous.revision,
+      currentStep: input.currentStep ?? previous.currentStep,
+      nextStep: requiredText(input.nextStep, "nextStep"),
+      secured,
+      gaps,
+      evidence,
+      lastCheckpoint: {
+        outcome: assessment.outcome,
+        selected: assessment.selected,
+        response: assessment.response,
+        format: assessment.format ?? "choice",
+        confidence: assessment.confidence,
+        calibration: assessment.calibration,
+        assessedAt: new Date().toISOString(),
+      },
+    });
   });
 }
 

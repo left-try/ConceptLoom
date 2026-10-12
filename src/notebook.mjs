@@ -1,5 +1,7 @@
-import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { readFile } from "node:fs/promises";
+import { isAbsolute, relative, resolve } from "node:path";
+import { resolveContainedPath } from "./storage/paths.mjs";
+import { assertRecovery, commitTransaction, hashBytes, recoverTransactions, withWorkspaceLock } from "./storage/transactions.mjs";
 
 const permittedKinds = new Set(["learner", "guide", "prompt", "response", "insight", "diagram"]);
 
@@ -34,28 +36,34 @@ function blockFor(kind, body, title) {
 }
 
 export async function beginNotebook(baseDirectory, input) {
-  const destination = resolveNotebookPath(baseDirectory, input.path);
-  await mkdir(dirname(destination), { recursive: true });
-  const heading = typeof input.title === "string" && input.title.trim() ? input.title.trim() : "Learning session";
-  const preamble = `# ${heading}\n\n_Created by Concept Loom on ${new Date().toISOString()}_\n`;
-  if (input.replace === true) {
-    await writeFile(destination, preamble, "utf8");
-  } else {
-    try {
-      const existing = await readFile(destination, "utf8");
-      if (!existing.trim()) await writeFile(destination, preamble, "utf8");
-    } catch (error) {
-      if (error?.code !== "ENOENT") throw error;
-      await writeFile(destination, preamble, "utf8");
+  return withWorkspaceLock(baseDirectory, async () => {
+    assertRecovery(await recoverTransactions(baseDirectory));
+    const path = input.path ?? "learning-notes.md";
+    const destination = await resolveContainedPath(baseDirectory, path);
+    const heading = typeof input.title === "string" && input.title.trim() ? input.title.trim() : "Learning session";
+    const preamble = `# ${heading}\n\n_Created by Concept Loom on ${new Date().toISOString()}_\n`;
+    const existing = await readOptional(destination);
+    if (input.replace === true || !existing?.toString("utf8").trim()) {
+      await commitTransaction(baseDirectory, { checks: [{ path, expectedHash: existing === null ? null : hashBytes(existing) }], writes: [{ path, value: preamble, encoding: "utf8" }] });
     }
-  }
-  return destination;
+    return destination;
+  });
 }
 
 export async function addNotebookEntry(baseDirectory, input) {
-  const destination = resolveNotebookPath(baseDirectory, input.path);
-  const kind = String(input.kind ?? "");
-  if (!permittedKinds.has(kind)) throw new Error(`kind must be one of: ${[...permittedKinds].join(", ")}`);
-  await appendFile(destination, `\n${blockFor(kind, input.body, input.title)}\n`, "utf8");
-  return destination;
+  return withWorkspaceLock(baseDirectory, async () => {
+    assertRecovery(await recoverTransactions(baseDirectory));
+    const path = input.path ?? "learning-notes.md";
+    const destination = await resolveContainedPath(baseDirectory, path);
+    const kind = String(input.kind ?? "");
+    if (!permittedKinds.has(kind)) throw new Error(`kind must be one of: ${[...permittedKinds].join(", ")}`);
+    const existing = await readOptional(destination);
+    await commitTransaction(baseDirectory, { checks: [{ path, expectedHash: existing === null ? null : hashBytes(existing) }], writes: [{ path, value: `${existing?.toString("utf8") ?? ""}\n${blockFor(kind, input.body, input.title)}\n`, encoding: "utf8" }] });
+    return destination;
+  });
+}
+
+async function readOptional(path) {
+  try { return await readFile(path); }
+  catch (error) { if (error.code === "ENOENT") return null; throw error; }
 }

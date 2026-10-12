@@ -1,9 +1,67 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, mkdir, readdir } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { listDueReviews, loadLearningState, recordCheckpointAssessment, saveLearningState } from "../src/progress.mjs";
+
+test("patch preserves omitted arrays", async () => {
+  const root = await mkdtemp(join(tmpdir(), "loom-patch-"));
+  const original = await saveLearningState(root, { sessionId: "patch", topic: "TLS", goal: "Learn", phase: "build", route: ["Hello", "JA4"], secured: ["Hello"], gaps: ["JA4"], currentStep: "Hello", notebookPath: "notes.md", learnerContext: "Networking", nextStep: "Check", evidence: { Hello: { attempts: 2 } }, routeExtensions: [{ concept: "TCP" }] });
+  const updated = await saveLearningState(root, { sessionId: "patch", topic: "TLS", goal: "Learn", phase: "build", nextStep: "Continue" });
+  for (const field of ["route", "secured", "gaps", "evidence", "routeExtensions", "currentStep", "notebookPath", "learnerContext"]) assert.deepEqual(updated[field], original[field], field);
+  assert.equal(updated.schemaVersion, 3);
+  const sparse = await saveLearningState(root, { sessionId: "patch", nextStep: "Sparse patch" });
+  assert.equal(sparse.goal, "Learn");
+  assert.deepEqual(sparse.route, ["Hello", "JA4"]);
+});
+
+test("stale revision changes nothing", async () => {
+  const root = await mkdtemp(join(tmpdir(), "loom-conflict-"));
+  const base = { sessionId: "conflict", topic: "TLS", goal: "Learn", phase: "build", route: ["Hello"], nextStep: "Check" };
+  await saveLearningState(root, base);
+  const file = join(root, ".concept-loom/sessions/conflict.json");
+  const before = await readFile(file, "utf8");
+  await assert.rejects(saveLearningState(root, { ...base, expectedRevision: 0, nextStep: "Stale" }), { code: "REVISION_CONFLICT" });
+  assert.equal(await readFile(file, "utf8"), before);
+  const updated = await saveLearningState(root, { ...base, expectedRevision: 1, nextStep: "Fresh" });
+  assert.equal(updated.revision, 2);
+});
+
+test("snapshot validates required fields and only resets replaceable lists", async () => {
+  const root = await mkdtemp(join(tmpdir(), "loom-snapshot-"));
+  const base = { sessionId: "snapshot", topic: "TLS", goal: "Learn", phase: "build", route: ["Hello"], nextStep: "Check", evidence: { Hello: { attempts: 2 } }, learnerContext: "Network" };
+  await saveLearningState(root, base);
+  await assert.rejects(saveLearningState(root, { sessionId: "snapshot", updateMode: "snapshot", nextStep: "Incomplete" }), /topic/);
+  await assert.rejects(saveLearningState(root, { ...base, updateMode: "unknown" }), /updateMode/);
+  const snapshot = await saveLearningState(root, { sessionId: "snapshot", topic: "TLS", goal: "Learn", phase: "review", nextStep: "Review", updateMode: "snapshot" });
+  assert.deepEqual(snapshot.route, []);
+  assert.deepEqual(snapshot.evidence, { Hello: { attempts: 2 } });
+  assert.equal(snapshot.learnerContext, "Network");
+});
+
+test("v1/v2 migration retains evidence", async () => {
+  for (const schemaVersion of [1, 2]) {
+    const root = await mkdtemp(join(tmpdir(), "loom-migration-"));
+    const directory = join(root, ".concept-loom/sessions");
+    await mkdir(directory, { recursive: true });
+    const original = { schemaVersion, sessionId: "legacy", topic: "TLS", goal: "Learn", phase: "build", revision: 7, route: ["Hello", "JA4"], secured: ["Hello"], gaps: [], nextStep: "Resume", evidence: { Hello: { attempts: 3, dimensions: { recall: "demonstrated" } } }, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z" };
+    const bytes = JSON.stringify(original, null, 2);
+    await writeFile(join(directory, "legacy.json"), bytes);
+    const { state } = await loadLearningState(root, { sessionId: "legacy" });
+    assert.equal(state.schemaVersion, 3);
+    assert.deepEqual(state.route, ["Hello", "JA4"]);
+    assert.deepEqual(state.evidence, original.evidence);
+    const backups = (await readdir(directory)).filter(name => name.includes(".bak"));
+    assert.equal(backups.length, 1);
+    assert.equal(await readFile(join(directory, backups[0]), "utf8"), bytes);
+    const moduleUrl = new URL("../src/progress.mjs", import.meta.url).href;
+    const restarted = spawnSync(process.execPath, ["--input-type=module", "-e", `import {loadLearningState} from ${JSON.stringify(moduleUrl)}; console.log(JSON.stringify(await loadLearningState(process.argv[1], {sessionId:'legacy'})));`, root], { encoding: "utf8" });
+    assert.equal(restarted.status, 0, restarted.stderr);
+    assert.deepEqual(JSON.parse(restarted.stdout).state, state);
+  }
+});
 
 test("persists and restores a learning session", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-progress-"));

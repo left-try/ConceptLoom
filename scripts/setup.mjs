@@ -36,7 +36,16 @@ async function copyNew(source, destination) {
 async function materializeTemplate(source, destination, replacements) {
   if (await exists(destination)) throw new Error(`refusing to overwrite existing file: ${destination}`);
   let text = await readFile(source, "utf8");
-  for (const [needle, value] of Object.entries(replacements)) text = text.replaceAll(needle, value);
+  const jsonTemplate = destination.endsWith(".json");
+  for (const [needle, value] of Object.entries(replacements)) text = text.replaceAll(needle, jsonTemplate ? JSON.stringify(value).slice(1, -1) : value);
+  if (jsonTemplate) {
+    const config = JSON.parse(text);
+    const command = config.mcpServers?.["concept-loom"]?.args ?? config.mcp?.["concept-loom"]?.command;
+    command.push("--workspace", target);
+    text = `${JSON.stringify(config, null, 2)}\n`;
+  } else {
+    text = text.replace(/args: \['(.*)'\]/, `args: ['$1', '--workspace', '${yamlSingleQuoted(target)}']`);
+  }
   await mkdir(dirname(destination), { recursive: true });
   await writeFile(destination, text, "utf8");
 }
@@ -82,7 +91,7 @@ function registerCodexMcp() {
     throw new Error("Codex CLI was not found on PATH. Install Codex or rerun with --skip-mcp.");
   }
   if (current.status === 0) {
-    if (current.stdout.includes(serverPath)) {
+    if (current.stdout.includes(serverPath) && current.stdout.includes("--workspace") && current.stdout.includes(target)) {
       process.stdout.write("Codex MCP server 'concept-loom' is already registered with this installation.\n");
       return;
     }
@@ -92,7 +101,7 @@ function registerCodexMcp() {
     );
   }
 
-  const added = runCodexMcp(["add", "concept-loom", "--", "node", serverPath]);
+  const added = runCodexMcp(["add", "concept-loom", "--", "node", serverPath, "--workspace", target]);
   if (added.error?.code === "ENOENT") {
     throw new Error("Codex CLI was not found on PATH. Install Codex or rerun with --skip-mcp.");
   }
@@ -168,7 +177,8 @@ async function installDeepSeekHarness() {
       await writeFile(
         patchDestination,
         (await readFile(join(source, "concept-loom.patch.yml.template"), "utf8"))
-          .replaceAll("__SERVER_PATH__", yamlSingleQuoted(join(projectRoot, "src", "bridge.mjs"))),
+          .replaceAll("__SERVER_PATH__", yamlSingleQuoted(join(projectRoot, "src", "bridge.mjs")))
+          .replace(/args: \['(.*)'\]/, `args: ['$1', '--workspace', '${yamlSingleQuoted(target)}']`),
         "utf8",
       );
     } else {

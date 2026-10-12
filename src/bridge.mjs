@@ -4,9 +4,14 @@ import { composeCheckpoint, assessCheckpoint } from "./checkpoints.mjs";
 import { beginNotebook, addNotebookEntry } from "./notebook.mjs";
 import { prepareMermaid, prepareTextDiagram } from "./diagrams.mjs";
 import { listDueReviews, loadLearningState, recordCheckpointAssessment, saveLearningState } from "./progress.mjs";
+import { resolveWorkspace } from "./workspace.mjs";
+import { assertRecovery, recoverTransactions } from "./storage/transactions.mjs";
 
 const PROTOCOL_VERSION = "2025-06-18";
-const workspace = process.cwd();
+const workspace = resolveWorkspace();
+const recoveryDiagnostics = await recoverTransactions(workspace);
+for (const diagnostic of recoveryDiagnostics) process.stderr.write(`${JSON.stringify(diagnostic)}\n`);
+assertRecovery(recoveryDiagnostics);
 
 const toolCatalog = [
   {
@@ -89,9 +94,11 @@ const toolCatalog = [
     description: "Persist the current route and exact resume point. After every learner response, call this before producing the next explanation or question. Save route approval as phase=build before teaching begins.",
     inputSchema: {
       type: "object",
-      required: ["sessionId", "topic", "goal", "phase", "nextStep"],
+      required: ["sessionId"],
       properties: {
         sessionId: { type: "string", description: "Stable short id, for example ja4-basics." },
+        updateMode: { enum: ["patch", "snapshot"], default: "patch" },
+        expectedRevision: { type: ["integer", "null"], minimum: 0 },
         topic: { type: "string" },
         goal: { type: "string" },
         phase: { enum: ["locate", "weave", "build", "transfer", "review", "complete"] },
