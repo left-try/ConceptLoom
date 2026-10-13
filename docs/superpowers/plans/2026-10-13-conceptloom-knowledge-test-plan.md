@@ -21,7 +21,7 @@
 | KNW-7 graph and search | source→fragment→lesson→concept; relative links and typed relations resolve; ambiguous wikilink diagnostic; fences ignored; encoded paths/anchors; duplicate occurrence provenance; Cyrillic aliases/chapter text; private records absent; cursor invalidated on revision change; cycles/depth/count bounded | unit + integration / P0 | `node --test test/knowledge-index.test.mjs test/knowledge-search.test.mjs` |
 | KNW-8 safe update | expected hash mismatch no writes; duplicate/broken markers no writes; unknown YAML and user body survive; transaction recovery; concurrent edits serialize under Foundation lock | integration / P0 | `node --test test/knowledge-update.test.mjs` |
 | KNW-9 export | OKF allowlist excludes Personal/private assessment/events; Obsidian includes Personal only on explicit opt-in; relative links/assets work after relocating export; traversal/symlink escape rejected; absent external assets listed; source and destination cannot overlap | integration / P0 | `node --test test/knowledge-export.test.mjs` |
-| KNW-10 optional boundary | local tools work with backend absent/disabled; no Tracelet imports/dependencies; evaluation tools remain optional; new registry tools preserve Foundation names and JSON-RPC contract | integration/regression / P0 | `node --test test/bridge.test.mjs test/assessment-service.test.mjs` |
+| KNW-10 optional boundary | local tools work with backend absent/disabled; no Tracelet imports/dependencies; evaluation tools remain optional; new registry tools preserve Foundation names and JSON-RPC contract | integration/regression / P0 | `node --test test/knowledge-tools.test.mjs test/bridge.test.mjs test/assessment-service.test.mjs` |
 
 ## Набор фикстур
 
@@ -44,8 +44,8 @@
 ## Порядок запуска
 
 1. На каждом K-task: сначала выбранный RED тест, затем полный файл K-task и его соседи.
-2. После K1–K5: `node --test test/knowledge-format.test.mjs test/sources.test.mjs test/knowledge-index.test.mjs test/knowledge-search.test.mjs test/document-adapter.test.mjs test/knowledge-update.test.mjs test/knowledge-export.test.mjs`.
-3. Python отдельно: `python -m unittest discover -s python/tests`. Если Python/Docling не установлены — adapter mocks всё равно обязательны; интеграционный OCR benchmark помечается как непроверенный.
+2. После K1–K5: `node --test test/knowledge-format.test.mjs test/sources.test.mjs test/knowledge-index.test.mjs test/knowledge-search.test.mjs test/document-adapter.test.mjs test/knowledge-update.test.mjs test/knowledge-export.test.mjs test/knowledge-tools.test.mjs test/bridge.test.mjs`.
+3. Python отдельно: `python -m unittest discover -s python/tests` (quality contracts и worker JSONL CLI). Если Python/Docling не установлены — независимые от engine Node adapter tests всё равно обязательны; интеграционный OCR benchmark помечается как непроверенный.
 4. Полная регрессия: `npm run verify` и `npm run check:prompts`.
 5. Повторить полный автоматический gate на Node 20 и поддерживаемом актуальном LTS. Записать точные версии Node/Python, OS и реальные причины любого platform skip.
 6. Ручной smoke test: открыть exported vault в Obsidian, пройти link navigation, проверить содержимое `Knowledge` и то, что `Personal` читается/редактируется как обычный Markdown. Это отдельная ручная запись, не подмена автоматизированного OKF/security gate.

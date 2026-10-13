@@ -8,7 +8,7 @@ import { spawn } from "node:child_process";
 import readline from "node:readline";
 import Ajv from "ajv";
 
-const names = ["loom_frame_checkpoint", "loom_assess_checkpoint", "loom_start_notebook", "loom_add_note", "loom_save_learning_state", "loom_load_learning_state", "loom_list_due_reviews", "loom_show_relation_map", "loom_show_text_diagram"];
+const names = ["loom_frame_checkpoint", "loom_assess_checkpoint", "loom_start_notebook", "loom_add_note", "loom_save_learning_state", "loom_load_learning_state", "loom_list_due_reviews", "loom_show_relation_map", "loom_show_text_diagram", "loom_import_source", "loom_prepare_source", "loom_get_source", "loom_search_knowledge", "loom_read_knowledge", "loom_knowledge_graph", "loom_update_knowledge", "loom_export_knowledge"];
 const graph = { nodes: [{ id: "book", label: "Book", kind: "source" }, { id: "idea", label: "Atomicity", kind: "concept" }], edges: [{ from: "book", to: "idea" }] };
 
 async function fixture(t) {
@@ -58,7 +58,7 @@ async function bridge(t) {
   return { root, child, messages, closed, send, call: (name, args) => send("tools/call", { name, arguments: args }) };
 }
 
-test("registry preserves nine tool names and validates the two relation-map input alternatives", async t => {
+test("registry preserves Foundation and Phase 2 tool names and validates relation-map input alternatives", async t => {
   const { catalog, invoke } = await registry(await fixture(t));
   assert.deepEqual(catalog.map(tool => tool.name), names);
   assert.equal(typeof invoke, "function");
@@ -124,6 +124,28 @@ test("MCP serves valid JSON only and preserves protocol negotiation without reso
     assert.ok(Object.hasOwn(message, "id"), "notifications must not produce responses");
     assert.ok(Object.hasOwn(message, "result") !== Object.hasOwn(message, "error"));
   }
+});
+
+test("JSON-RPC imports a source and searches the same workspace knowledge bundle", async t => {
+  const client = await bridge(t);
+  await client.send("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "knowledge-fixture", version: "1" } });
+  client.child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`);
+  const imported = (await client.call("loom_import_source", {
+    uid: "bridge-source", resource: "https://example.test/bridge-source", title: "Bridge source",
+    coverage: "full", content: "Magnitude and direction define a vector.",
+    receipt: {
+      schemaVersion: 1, query: "vector definition", openedResource: "https://example.test/bridge-source",
+      fetchedAt: "2026-10-13T08:00:00Z", representation: "raw", coverage: "full", limitations: [],
+    },
+  })).result;
+  assert.equal(imported.isError, undefined, JSON.stringify(imported));
+  assert.equal(imported.structuredContent.uid, "bridge-source");
+  const search = (await client.call("loom_search_knowledge", { query: "magnitude vector" })).result;
+  assert.equal(search.isError, undefined, JSON.stringify(search));
+  assert.ok(search.structuredContent.hits.length > 0);
+  assert.equal(JSON.stringify(search).includes("answerKey"), false);
+  client.child.stdin.end();
+  assert.equal(await client.closed, 0);
 });
 
 test("JSON-RPC notifications never emit a response", async t => {

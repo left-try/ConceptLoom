@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "fixtureKind": "synthetic-page-quality-contract",
+  "copyright": "All text is synthetic and created for ConceptLoom tests.",
+  "cases": [
+    { "id": "en-born-digital", "language": "en", "kind": "born-digital", "page": 1, "text": "A vector has magnitude and direction.", "expectedStatus": "usable", "expectedSignals": [] },
+    { "id": "ru-born-digital", "language": "ru", "kind": "born-digital", "page": 1, "text": "У вектора есть длина и направление.", "expectedStatus": "usable", "expectedSignals": [] },
+    { "id": "en-scanned-damaged", "language": "en", "kind": "scanned", "page": 2, "text": "The eig\uFFFDnvector keeps its direction.", "expectedStatus": "needs-review", "expectedSignals": ["replacement_characters"] },
+    { "id": "ru-scanned-damaged", "language": "ru", "kind": "scanned", "page": 2, "text": "Соб\uFFFDственный вектор сохраняет направление.", "expectedStatus": "needs-review", "expectedSignals": ["replacement_characters"] },
+    { "id": "en-two-column-order", "language": "en", "kind": "two-column", "page": 3, "text": "Right column first. Left column second.", "blocks": [{ "text": "Right column first.", "bbox": [300, 0, 500, 100] }, { "text": "Left column second.", "bbox": [0, 0, 200, 100] }], "expectedStatus": "needs-review", "expectedSignals": ["suspicious_block_order"] },
+    { "id": "ru-two-column-order", "language": "ru", "kind": "two-column", "page": 3, "text": "Правая колонка первая. Левая колонка вторая.", "blocks": [{ "text": "Правая колонка первая.", "bbox": [300, 0, 500, 100] }, { "text": "Левая колонка вторая.", "bbox": [0, 0, 200, 100] }], "expectedStatus": "needs-review", "expectedSignals": ["suspicious_block_order"] },
+    { "id": "en-table", "language": "en", "kind": "table", "page": 4, "text": "Name | Value\nVector | [1, 2]", "blocks": [{ "text": "Name | Value\nVector | [1, 2]", "kind": "table", "bbox": [0, 0, 500, 200] }], "expectedStatus": "usable", "expectedSignals": [] },
+    { "id": "ru-table", "language": "ru", "kind": "table", "page": 4, "text": "Имя | Значение\nВектор | [1, 2]", "blocks": [{ "text": "Имя | Значение\nВектор | [1, 2]", "kind": "table", "bbox": [0, 0, 500, 200] }], "expectedStatus": "usable", "expectedSignals": [] },
+    { "id": "en-formula", "language": "en", "kind": "formula", "page": 5, "text": "The squared norm is x^2 + y^2.", "blocks": [{ "text": "x^2 + y^2", "kind": "formula", "bbox": [80, 50, 250, 90] }], "expectedStatus": "usable", "expectedSignals": [] },
+    { "id": "ru-formula", "language": "ru", "kind": "formula", "page": 5, "text": "Квадрат нормы равен x^2 + y^2.", "blocks": [{ "text": "x^2 + y^2", "kind": "formula", "bbox": [80, 50, 250, 90] }], "expectedStatus": "usable", "expectedSignals": [] },
+    { "id": "en-rotated-corrected", "language": "en", "kind": "rotated", "page": 6, "text": "Rotation was corrected before extraction.", "orientation": 90, "expectedStatus": "usable", "expectedSignals": [] },
+    { "id": "ru-rotated-corrected", "language": "ru", "kind": "rotated", "page": 6, "text": "Поворот исправлен перед извлечением.", "orientation": 90, "expectedStatus": "usable", "expectedSignals": [] }
+  ]
+}
