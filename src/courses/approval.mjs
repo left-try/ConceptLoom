@@ -5,16 +5,22 @@ import { courseError, updateCourse } from "./state.mjs";
 export { proposeCourseEdit } from "./projections.mjs";
 
 const digest = value => `sha256:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}`;
-function validConsent(consent, shownDigest) {
-  if (!consent || consent.shownDigest !== shownDigest || typeof consent.userResponse !== "string" || !consent.userResponse.trim() || !consent.host || !consent.recordedAt || Number.isNaN(Date.parse(consent.recordedAt))) throw courseError("CONSENT_MISMATCH", "explicit consent must match the exact displayed digest");
+function normalizeConsent(consent, shownDigest) {
+  if (!consent || typeof consent !== "object" || Array.isArray(consent)) throw courseError("INVALID_CONSENT", "consent must be an object");
+  if (consent.shownDigest !== shownDigest) throw courseError("CONSENT_MISMATCH", "consent was recorded for a different or stale displayed digest");
+  if (typeof consent.userResponse !== "string" || !consent.userResponse.trim()) throw courseError("INVALID_CONSENT", "consent.userResponse must contain the learner's explicit approval");
+  if (typeof consent.host !== "string" || !consent.host.trim()) throw courseError("INVALID_CONSENT", "consent.host is required");
+  const recordedAt = consent.recordedAt ?? new Date().toISOString();
+  if (typeof recordedAt !== "string" || Number.isNaN(Date.parse(recordedAt))) throw courseError("INVALID_CONSENT", "consent.recordedAt must be a valid timestamp");
+  return { ...structuredClone(consent), recordedAt };
 }
 export async function approveRoadmap(root, { courseUid, roadmapRevision, consent } = {}) {
   const course = await getCourse(root, { uid: courseUid });
   if (!course.roadmapRevision || course.roadmapRevision !== roadmapRevision) throw courseError("ROADMAP_REVISION_MISMATCH", "roadmap changed after it was shown");
-  validConsent(consent, roadmapRevision);
+  const recordedConsent = normalizeConsent(consent, roadmapRevision);
   const readiness = await checkRoadmapReadiness(root, course);
   if (!readiness.ready) throw courseError("ROADMAP_NOT_READY", readiness.blockers.map(item => item.message).join("; "));
-  return updateCourse(root, courseUid, course.revision, current => ({ ...current, status: "approved", approvals: [...current.approvals, { id: randomUUID(), kind: "roadmap", roadmapRevision, consent: structuredClone(consent) }] }));
+  return updateCourse(root, courseUid, course.revision, current => ({ ...current, status: "approved", approvals: [...current.approvals, { id: randomUUID(), kind: "roadmap", roadmapRevision, consent: recordedConsent }] }));
 }
 export async function setCoursePaused(root, { courseUid, paused, expectedRevision, reason = "" } = {}) {
   if (typeof paused !== "boolean") throw courseError("INVALID_PAUSE", "paused must be boolean");
@@ -48,9 +54,9 @@ export async function approveSchedule(root, { courseUid, draftId, consent } = {}
   const course = await getCourse(root, { uid: courseUid });
   const draft = (course.scheduleDrafts ?? []).find(item => item.id === draftId);
   if (!draft || draft.roadmapRevision !== course.roadmapRevision) throw courseError("SCHEDULE_DRAFT_STALE", "schedule draft missing or roadmap changed");
-  validConsent(consent, draft.digest);
-  if (consent.host !== draft.host) throw courseError("CONSENT_HOST_MISMATCH", "consent host differs from schedule host");
-  const approval = { id: randomUUID(), kind: "schedule", draftId, digest: draft.digest, roadmapRevision: draft.roadmapRevision, status: "approved", consent: structuredClone(consent) };
+  const recordedConsent = normalizeConsent(consent, draft.digest);
+  if (recordedConsent.host !== draft.host) throw courseError("CONSENT_HOST_MISMATCH", "consent host differs from schedule host");
+  const approval = { id: randomUUID(), kind: "schedule", draftId, digest: draft.digest, roadmapRevision: draft.roadmapRevision, status: "approved", consent: recordedConsent };
   await updateCourse(root, courseUid, course.revision, current => ({ ...current, scheduleApprovals: [...(current.scheduleApprovals ?? []), approval] }));
   return approval;
 }
