@@ -66,6 +66,15 @@ Use $concept-coach. I want to understand database transactions well enough
 to choose the right isolation level for a small web application.
 ```
 
+For a multi-session course, ask directly:
+
+```text
+Use $concept-coach. Build me a course on database transactions. I can study
+30 minutes on weekdays, and I want to choose safe isolation levels at work.
+```
+
+You can also ask to learn from your own materials, resume a lesson, or review a topic. No special command syntax is needed. Course intake and diagnosis proceed one question at a time. After roadmap approval, the coach proposes a concrete schedule for separate approval; activation still depends on host confirmation.
+
 ## Other clients
 
 Install dependencies with `npm ci --ignore-scripts` in the Concept Loom repository before running any adapter setup:

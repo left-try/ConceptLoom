@@ -1,0 +1,10 @@
+{
+  "kind": "assertion",
+  "id": "FND-C10",
+  "domain": "opf",
+  "type": "workflow",
+  "origin": {
+    "file": "test/prompts.test.mjs",
+    "test": "six catalog prompts load with source identity and ordered messages"
+  }
+}

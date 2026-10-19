@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "uid": "isolation-simulation",
+  "kind": "simulation",
+  "publicSpec": {
+    "title": "Смоделируй конкурентные записи",
+    "instructions": "Поменяй порядок чтения и фиксации двух работников. Предскажи, какой revision сохранится.",
+    "exerciseUid": "isolation-simulation",
+    "exerciseRevision": "fixture-revision",
+    "initialState": { "status": "start", "revision": 4, "writers": [] },
+    "actions": ["read-a", "read-b", "commit-a", "commit-b"],
+    "transitions": {
+      "start": { "read-a": "one-read" },
+      "one-read": { "read-b": "both-read" },
+      "both-read": { "commit-a": "one-committed" },
+      "one-committed": { "commit-b": "complete" }
+    }
+  },
+  "privateCriteria": {
+    "rubricVersion": "1",
+    "criteria": ["predicts the winner", "explains why the stale revision conflicts"],
+    "solution": "Private simulation outcomes must not be embedded in publicSpec."
+  }
+}

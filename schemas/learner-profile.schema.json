@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://conceptloom.dev/schemas/learner-profile.schema.json",
+  "title": "ConceptLoom Learner Profile",
+  "type": "object",
+  "required": ["schemaVersion", "revision", "observations", "mastery"],
+  "properties": {
+    "schemaVersion": { "const": 1 }, "revision": { "type": "integer", "minimum": 1 },
+    "observations": { "type": "array", "items": { "type": "object", "required": ["field", "value", "basis", "recordedAt"], "properties": { "field": { "type": "string" }, "basis": { "enum": ["self-report", "assessment", "preference"] }, "recordedAt": { "type": "string", "format": "date-time" } } } },
+    "mastery": { "type": "object" }
+  },
+  "additionalProperties": true
+}

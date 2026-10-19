@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ConceptLoom — учебный граф</title>
+  <!--INLINE_STYLES-->
+</head>
+<body>
+  <main>
+    <header class="topbar">
+      <div><p id="eyebrow" class="eyebrow">CONCEPTLOOM · LEARNING</p><h1 id="title">Учебный граф</h1></div>
+      <button id="theme" class="quiet" type="button" aria-label="Переключить тему">◐</button>
+    </header>
+    <p id="summary" class="summary">Загрузка учебного контекста…</p>
+    <section id="roadmap" class="panel roadmap-panel" aria-labelledby="roadmap-title" hidden>
+      <div class="section-heading"><div><p class="eyebrow">ПЕРСОНАЛЬНЫЙ МАРШРУТ</p><h2 id="roadmap-title">План курса</h2></div><span id="roadmap-revision" class="revision"></span></div>
+      <p id="roadmap-goal" class="roadmap-goal"></p>
+      <div id="roadmap-graph-wrap" class="roadmap-graph-wrap" role="img" aria-label="Связи и зависимости между уроками курса"><svg id="roadmap-graph" class="roadmap-graph"></svg></div>
+      <p id="roadmap-graph-caption" class="count"></p>
+      <ol id="roadmap-lessons" class="roadmap-list"></ol>
+      <p id="roadmap-truncated" class="count" hidden></p>
+    </section>
+    <section id="knowledge-graph" aria-labelledby="graph-title" class="panel">
+      <div class="section-heading"><h2 id="graph-title">Связанные понятия</h2><span id="count" class="count"></span></div>
+      <svg id="graph" class="graph" role="img" aria-label="Граф связанных понятий"></svg>
+      <ul id="nodes" class="node-list" aria-label="Список понятий"></ul>
+    </section>
+    <section id="practice" class="panel" aria-labelledby="practice-title" hidden>
+      <div class="section-heading"><h2 id="practice-title">Практика</h2></div>
+      <div id="exercises"></div>
+    </section>
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+  </main>
+  <!--VIEW_DATA-->
+  <!--INLINE_SCENARIOS-->
+  <!--INLINE_SCRIPT-->
+</body>
+</html>

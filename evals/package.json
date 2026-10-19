@@ -1,0 +1,16 @@
+{
+  "name": "@conceptloom/evals",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "scripts": {
+    "eval:recorded": "promptfoo eval -c promptfooconfig.yaml --no-cache --no-progress-bar",
+    "eval:model": "node ../scripts/eval-model.mjs"
+  },
+  "dependencies": {
+    "concept-loom": "file:..",
+    "promptfoo": "0.124.1"
+  }
+}

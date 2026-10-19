@@ -1,0 +1,10 @@
+# Model judges are disabled until eval-model.mjs receives an explicit provider,
+# positive cost estimate, --budget-usd, --max-cases, and --allow-paid.
+# This file is a rubric/source reference for opt-in Promptfoo integrations.
+schemaVersion: 1
+rubric: rubrics/teaching.yaml
+dataset: datasets/teaching.jsonl
+provider: null
+requiresExplicitProvider: true
+requiresKnownCost: true
+neverUseDefaultGrader: true

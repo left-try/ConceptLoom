@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "uid": "debugging-scenario",
+  "kind": "scenario",
+  "publicSpec": {
+    "title": "Найди нарушенный переход",
+    "instructions": "Изучи лог операции и выбери следующий безопасный шаг.",
+    "exerciseUid": "debugging-scenario",
+    "exerciseRevision": "fixture-revision",
+    "initialState": { "status": "start", "observations": [] },
+    "actions": ["inspect", "compare", "repair"],
+    "transitions": {
+      "start": { "inspect": "inspected" },
+      "inspected": { "compare": "compared" },
+      "compared": { "repair": "complete" }
+    }
+  },
+  "privateCriteria": {
+    "rubricVersion": "1",
+    "criteria": ["identifies the stale write", "preserves the winning revision"],
+    "solution": "Private grading data belongs in workspace state, not in the public example."
+  }
+}

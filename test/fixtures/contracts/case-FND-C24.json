@@ -1,0 +1,10 @@
+{
+  "kind": "assertion",
+  "id": "FND-C24",
+  "domain": "course-dispatch",
+  "type": "workflow",
+  "origin": {
+    "file": "test/course-dispatch.test.mjs",
+    "test": "requires persisted assessment evidence before completing a lesson"
+  }
+}

@@ -1,0 +1,33 @@
+description: ConceptLoom recorded structural regression (offline)
+prompts:
+  - "{{context}}"
+providers:
+  - id: file://providers/recorded.mjs
+    label: recorded-candidate-a
+    config:
+      candidateId: candidate-a
+      outputsFile: datasets/recorded.json
+  - id: file://providers/recorded.mjs
+    label: recorded-candidate-b
+    config:
+      candidateId: candidate-b
+      outputsFile: datasets/recorded.json
+tests:
+  - vars:
+      caseId: recorded-1
+      context: "Synthetic learner asks for one optional reading."
+    assert:
+      - type: javascript
+        value: file://assertions/structural.mjs
+        config:
+          type: knowledge-links
+          knownPaths: []
+  - vars:
+      caseId: recorded-2
+      context: "Synthetic learner asks how a private exercise is graded."
+    assert:
+      - type: javascript
+        value: file://assertions/structural.mjs
+        config:
+          type: concealment
+          privateMarkers: [PRIVATE-RUBRIC-42]

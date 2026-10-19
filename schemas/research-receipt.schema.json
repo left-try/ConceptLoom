@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://conceptloom.dev/schemas/research-receipt.schema.json",
+  "title": "ConceptLoom Research Receipt",
+  "type": "object",
+  "required": ["schemaVersion", "query", "openedResource", "fetchedAt", "representation", "coverage", "locators", "limitations"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "query": { "type": "string" },
+    "openedResource": { "type": "string", "minLength": 1 },
+    "fetchedAt": { "type": "string", "minLength": 1 },
+    "representation": { "enum": ["raw", "extracted", "summary", "metadata", "unknown"] },
+    "coverage": { "enum": ["full", "partial", "summary", "metadata", "unknown"] },
+    "contentHash": { "type": "string", "pattern": "^(sha256:)?[a-f0-9]{64}$" },
+    "locators": { "type": "array", "items": { "type": "object", "properties": { "page": { "type": "integer", "minimum": 1 }, "contentHash": { "type": "string" } }, "additionalProperties": true } },
+    "limitations": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": true
+}

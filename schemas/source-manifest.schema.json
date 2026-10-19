@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://conceptloom.dev/schemas/source-manifest.schema.json",
+  "title": "ConceptLoom Source Manifest",
+  "type": "object",
+  "required": ["schemaVersion", "uid", "canonicalResource", "title", "coverage", "versions"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "uid": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,127}$" },
+    "canonicalResource": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "coverage": { "enum": ["full", "partial", "summary", "metadata", "unknown"] },
+    "currentContentHash": { "type": "string", "pattern": "^(sha256:)?[a-f0-9]{64}$" },
+    "status": { "type": "string" },
+    "versions": { "type": "array", "items": { "type": "object", "required": ["coverage", "originalStorage"], "properties": { "contentHash": { "type": "string" }, "coverage": { "enum": ["full", "partial", "summary", "metadata", "unknown"] }, "originalStorage": { "enum": ["asset", "external"] }, "assetPath": { "type": "string" }, "receipt": { "type": "object" } }, "additionalProperties": true } }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,10 @@
+{
+  "kind": "assertion",
+  "id": "FND-C23",
+  "domain": "course-dispatch",
+  "type": "workflow",
+  "origin": {
+    "file": "test/course-dispatch.test.mjs",
+    "test": "parallel retries of the same run publish at most one lesson"
+  }
+}

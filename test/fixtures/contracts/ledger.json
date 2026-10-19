@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "plannedStructuralCases": 24,
-  "implementedStructuralCases": 8,
+  "implementedStructuralCases": 24,
   "cases": [
     {
       "id": "FND-C01",
@@ -9,7 +9,9 @@
       "origin": {
         "file": "test/progress.test.mjs",
         "test": "patch preserves omitted arrays"
-      }
+      },
+      "domain": "state-checkpoint",
+      "executable": true
     },
     {
       "id": "FND-C02",
@@ -17,7 +19,9 @@
       "origin": {
         "file": "test/progress.test.mjs",
         "test": "updates a session atomically and increments its revision"
-      }
+      },
+      "domain": "state-checkpoint",
+      "executable": true
     },
     {
       "id": "FND-C03",
@@ -25,7 +29,9 @@
       "origin": {
         "file": "test/checkpoints.test.mjs",
         "test": "frames a checkpoint without leaking its key or rationale"
-      }
+      },
+      "domain": "state-checkpoint",
+      "executable": true
     },
     {
       "id": "FND-C04",
@@ -33,7 +39,9 @@
       "origin": {
         "file": "test/prompts.test.mjs",
         "test": "input cannot add messages or recursively interpolate"
-      }
+      },
+      "domain": "opf",
+      "executable": true
     },
     {
       "id": "FND-C05",
@@ -41,7 +49,9 @@
       "origin": {
         "file": "test/diagrams.test.mjs",
         "test": "labels remain escaped text"
-      }
+      },
+      "domain": "practice-capture",
+      "executable": true
     },
     {
       "id": "FND-C06",
@@ -49,7 +59,9 @@
       "origin": {
         "file": "test/diagrams.test.mjs",
         "test": "missing endpoint fails"
-      }
+      },
+      "domain": "practice-capture",
+      "executable": true
     },
     {
       "id": "FND-C07",
@@ -57,7 +69,9 @@
       "origin": {
         "file": "test/capture.test.mjs",
         "test": "unknown usage stays absent and inferred token usage is excluded"
-      }
+      },
+      "domain": "practice-capture",
+      "executable": true
     },
     {
       "id": "FND-C08",
@@ -65,25 +79,170 @@
       "origin": {
         "file": "test/capture.test.mjs",
         "test": "eval results require evaluator identity and distinguish completed/error/skipped"
+      },
+      "domain": "practice-capture",
+      "executable": true
+    },
+    {
+      "id": "FND-C09",
+      "domain": "state-checkpoint",
+      "fixture": "case-FND-C09.json",
+      "executable": false,
+      "origin": {
+        "file": "test/progress.test.mjs",
+        "test": "updates a session atomically and increments its revision"
+      }
+    },
+    {
+      "id": "FND-C10",
+      "domain": "opf",
+      "fixture": "case-FND-C10.json",
+      "executable": false,
+      "origin": {
+        "file": "test/prompts.test.mjs",
+        "test": "six catalog prompts load with source identity and ordered messages"
+      }
+    },
+    {
+      "id": "FND-C11",
+      "domain": "opf",
+      "fixture": "case-FND-C11.json",
+      "executable": false,
+      "origin": {
+        "file": "test/prompts.test.mjs",
+        "test": "missing input fails and undeclared or non-string inputs fail"
+      }
+    },
+    {
+      "id": "FND-C12",
+      "domain": "opf",
+      "fixture": "case-FND-C12.json",
+      "executable": false,
+      "origin": {
+        "file": "test/prompts.test.mjs",
+        "test": "CRLF and bare CR keep digest and message content"
+      }
+    },
+    {
+      "id": "FND-C13",
+      "domain": "okf-roundtrip",
+      "fixture": "case-FND-C13.json",
+      "executable": false,
+      "origin": {
+        "file": "test/knowledge-format.test.mjs",
+        "test": "parses a typed OKF note and derives its ID from its path"
+      }
+    },
+    {
+      "id": "FND-C14",
+      "domain": "okf-roundtrip",
+      "fixture": "case-FND-C14.json",
+      "executable": false,
+      "origin": {
+        "file": "test/knowledge-format.test.mjs",
+        "test": "preserves unknown metadata, unknown node types, and body through serialization"
+      }
+    },
+    {
+      "id": "FND-C15",
+      "domain": "okf-roundtrip",
+      "fixture": "case-FND-C15.json",
+      "executable": false,
+      "origin": {
+        "file": "test/knowledge-export.test.mjs",
+        "test": "relative Markdown links and assets remain valid after relocating export"
+      }
+    },
+    {
+      "id": "FND-C16",
+      "domain": "okf-roundtrip",
+      "fixture": "case-FND-C16.json",
+      "executable": false,
+      "origin": {
+        "file": "test/knowledge-format.test.mjs",
+        "test": "keeps OKF verified status independent from learner mastery"
+      }
+    },
+    {
+      "id": "FND-C17",
+      "domain": "source-citation",
+      "fixture": "case-FND-C17.json",
+      "executable": false,
+      "origin": {
+        "file": "test/sources.test.mjs",
+        "test": "imports source bytes as a hash-addressed immutable asset with provenance"
+      }
+    },
+    {
+      "id": "FND-C18",
+      "domain": "source-citation",
+      "fixture": "case-FND-C18.json",
+      "executable": false,
+      "origin": {
+        "file": "test/sources.test.mjs",
+        "test": "a new source version preserves earlier immutable bytes and locators"
+      }
+    },
+    {
+      "id": "FND-C19",
+      "domain": "source-citation",
+      "fixture": "case-FND-C19.json",
+      "executable": false,
+      "origin": {
+        "file": "test/sources.test.mjs",
+        "test": "creates deterministic chunks at section boundaries with exact source locators"
+      }
+    },
+    {
+      "id": "FND-C20",
+      "domain": "source-citation",
+      "fixture": "case-FND-C20.json",
+      "executable": false,
+      "origin": {
+        "file": "test/sources.test.mjs",
+        "test": "rejects a receipt hash that does not match the source bytes"
+      }
+    },
+    {
+      "id": "FND-C21",
+      "domain": "course-dispatch",
+      "fixture": "case-FND-C21.json",
+      "executable": false,
+      "origin": {
+        "file": "test/course-dispatch.test.mjs",
+        "test": "claims one eligible lesson and returns a resumable capsule"
+      }
+    },
+    {
+      "id": "FND-C22",
+      "domain": "course-dispatch",
+      "fixture": "case-FND-C22.json",
+      "executable": false,
+      "origin": {
+        "file": "test/course-dispatch.test.mjs",
+        "test": "replaying a committed publication returns the existing receipt"
+      }
+    },
+    {
+      "id": "FND-C23",
+      "domain": "course-dispatch",
+      "fixture": "case-FND-C23.json",
+      "executable": false,
+      "origin": {
+        "file": "test/course-dispatch.test.mjs",
+        "test": "parallel retries of the same run publish at most one lesson"
+      }
+    },
+    {
+      "id": "FND-C24",
+      "domain": "course-dispatch",
+      "fixture": "case-FND-C24.json",
+      "executable": false,
+      "origin": {
+        "file": "test/course-dispatch.test.mjs",
+        "test": "requires persisted assessment evidence before completing a lesson"
       }
     }
   ],
-  "remainingStructuralCaseIds": [
-    "FND-C09",
-    "FND-C10",
-    "FND-C11",
-    "FND-C12",
-    "FND-C13",
-    "FND-C14",
-    "FND-C15",
-    "FND-C16",
-    "FND-C17",
-    "FND-C18",
-    "FND-C19",
-    "FND-C20",
-    "FND-C21",
-    "FND-C22",
-    "FND-C23",
-    "FND-C24"
-  ]
+  "remainingStructuralCaseIds": []
 }

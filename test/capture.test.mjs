@@ -261,8 +261,10 @@ test("state-restored capture contains committed factual fields and preserves suc
 test("evaluation tools are optional and lesson publication cannot be claimed by general capture", async t => {
   const { captureEvent, tools } = await api(), root = await fixture(t);
   const core = createToolRegistry(root);
-  assert.equal(core.catalog.length, 9);
+  assert.ok(core.catalog.some(tool => tool.name === "loom_create_exercise"));
+  assert.ok(core.catalog.some(tool => tool.name === "loom_open_learning_view"));
   const extended = createToolRegistry(root, { evaluationTools: true });
+  assert.ok(extended.catalog.length > core.catalog.length);
   assert.ok(extended.catalog.some(tool => tool.name === "loom_recover_capture"));
   assert.equal(typeof tools(root)[0].invoke, "function");
   const validation = await extended.invoke("loom_validate_contract", { name: "capture-event", value: event() });
@@ -287,13 +289,14 @@ test("malformed outbox is visible and cannot silently discard recorded evidence"
   assert.equal(await fs.readFile(join(root, outbox), "utf8"), corrupt);
 });
 
-test("first eight structural contract fixtures execute against their real originating modules", async t => {
+test("the initial eight structural fixtures execute against their real originating modules", async t => {
   await api();
   const ledger = JSON.parse(await fs.readFile(new URL("fixtures/contracts/ledger.json", import.meta.url), "utf8"));
   assert.equal(ledger.plannedStructuralCases, 24);
-  assert.equal(ledger.cases.length, 8);
-  assert.equal(new Set(ledger.cases.map(row => row.id)).size, 8);
-  for (const row of ledger.cases) {
+  const executableCases = ledger.cases.filter(row => row.executable === true);
+  assert.equal(executableCases.length, 8);
+  assert.equal(new Set(ledger.cases.map(row => row.id)).size, 24);
+  for (const row of executableCases) {
     assert.ok(row.origin.file && row.origin.test);
     const value = JSON.parse(await fs.readFile(new URL(`fixtures/contracts/${row.fixture}`, import.meta.url), "utf8"));
     const root = await fixture(t);

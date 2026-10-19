@@ -1,0 +1,559 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "FND-C01",
+      "domain": "state-checkpoint",
+      "fixture": "state-patch.json",
+      "origin": {
+        "file": "test/progress.test.mjs",
+        "test": "patch preserves omitted arrays"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "concealment",
+        "publicText": "Checkpoint: your turn",
+        "privateMarkers": [
+          "PRIVATE-ANSWER-91"
+        ]
+      }
+    },
+    {
+      "id": "FND-C02",
+      "domain": "state-checkpoint",
+      "fixture": "state-conflict-free-patch.json",
+      "origin": {
+        "file": "test/progress.test.mjs",
+        "test": "updates a session atomically and increments its revision"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "concealment",
+        "publicText": "Checkpoint: your turn",
+        "privateMarkers": [
+          "PRIVATE-ANSWER-91"
+        ]
+      }
+    },
+    {
+      "id": "FND-C03",
+      "domain": "state-checkpoint",
+      "fixture": "concealed-card.json",
+      "origin": {
+        "file": "test/checkpoints.test.mjs",
+        "test": "frames a checkpoint without leaking its key or rationale"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "concealment",
+        "publicText": "Checkpoint: your turn",
+        "privateMarkers": [
+          "PRIVATE-ANSWER-91"
+        ]
+      }
+    },
+    {
+      "id": "FND-C04",
+      "domain": "opf",
+      "fixture": "opf-message-injection.json",
+      "origin": {
+        "file": "test/prompts.test.mjs",
+        "test": "input cannot add messages or recursively interpolate"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "workflow",
+        "steps": [
+          "load-prompt",
+          "validate-input",
+          "render-messages"
+        ],
+        "requiredOrder": [
+          "load-prompt",
+          "validate-input",
+          "render-messages"
+        ]
+      }
+    },
+    {
+      "id": "FND-C05",
+      "domain": "practice-capture",
+      "fixture": "diagram-safe-label.json",
+      "origin": {
+        "file": "test/diagrams.test.mjs",
+        "test": "labels remain escaped text"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "workflow",
+        "steps": [
+          "capture-evidence",
+          "validate-schema",
+          "persist-event"
+        ],
+        "requiredOrder": [
+          "capture-evidence",
+          "validate-schema",
+          "persist-event"
+        ]
+      }
+    },
+    {
+      "id": "FND-C06",
+      "domain": "practice-capture",
+      "fixture": "diagram-unknown-endpoint.json",
+      "origin": {
+        "file": "test/diagrams.test.mjs",
+        "test": "missing endpoint fails"
+      },
+      "expectedPassed": false,
+      "assertion": {
+        "type": "workflow",
+        "steps": [
+          "persist-receipt",
+          "check-consent"
+        ],
+        "requiredOrder": [
+          "check-consent",
+          "persist-receipt"
+        ]
+      }
+    },
+    {
+      "id": "FND-C07",
+      "domain": "practice-capture",
+      "fixture": "capture-known-facts.json",
+      "origin": {
+        "file": "test/capture.test.mjs",
+        "test": "unknown usage stays absent and inferred token usage is excluded"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "workflow",
+        "steps": [
+          "capture-evidence",
+          "validate-schema",
+          "persist-event"
+        ],
+        "requiredOrder": [
+          "capture-evidence",
+          "validate-schema",
+          "persist-event"
+        ]
+      }
+    },
+    {
+      "id": "FND-C08",
+      "domain": "practice-capture",
+      "fixture": "eval-error-not-pass.json",
+      "origin": {
+        "file": "test/capture.test.mjs",
+        "test": "eval results require evaluator identity and distinguish completed/error/skipped"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "workflow",
+        "steps": [
+          "capture-evidence",
+          "validate-schema",
+          "persist-event"
+        ],
+        "requiredOrder": [
+          "capture-evidence",
+          "validate-schema",
+          "persist-event"
+        ]
+      }
+    },
+    {
+      "id": "FND-C09",
+      "domain": "state-checkpoint",
+      "fixture": "case-FND-C09.json",
+      "origin": {
+        "file": "test/progress.test.mjs",
+        "test": "updates a session atomically and increments its revision"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "concealment",
+        "publicText": "Checkpoint: your turn",
+        "privateMarkers": [
+          "PRIVATE-ANSWER-91"
+        ]
+      }
+    },
+    {
+      "id": "FND-C10",
+      "domain": "opf",
+      "fixture": "case-FND-C10.json",
+      "origin": {
+        "file": "test/prompts.test.mjs",
+        "test": "six catalog prompts load with source identity and ordered messages"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "workflow",
+        "steps": [
+          "load-prompt",
+          "validate-input",
+          "render-messages"
+        ],
+        "requiredOrder": [
+          "load-prompt",
+          "validate-input",
+          "render-messages"
+        ]
+      }
+    },
+    {
+      "id": "FND-C11",
+      "domain": "opf",
+      "fixture": "case-FND-C11.json",
+      "origin": {
+        "file": "test/prompts.test.mjs",
+        "test": "missing input fails and undeclared or non-string inputs fail"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "workflow",
+        "steps": [
+          "load-prompt",
+          "validate-input",
+          "render-messages"
+        ],
+        "requiredOrder": [
+          "load-prompt",
+          "validate-input",
+          "render-messages"
+        ]
+      }
+    },
+    {
+      "id": "FND-C12",
+      "domain": "opf",
+      "fixture": "case-FND-C12.json",
+      "origin": {
+        "file": "test/prompts.test.mjs",
+        "test": "CRLF and bare CR keep digest and message content"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "workflow",
+        "steps": [
+          "load-prompt",
+          "validate-input",
+          "render-messages"
+        ],
+        "requiredOrder": [
+          "load-prompt",
+          "validate-input",
+          "render-messages"
+        ]
+      }
+    },
+    {
+      "id": "FND-C13",
+      "domain": "okf-roundtrip",
+      "fixture": "case-FND-C13.json",
+      "origin": {
+        "file": "test/knowledge-format.test.mjs",
+        "test": "parses a typed OKF note and derives its ID from its path"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "knowledge-links",
+        "markdown": "[note](knowledge/note.okf)",
+        "knownPaths": [
+          "knowledge/note.okf"
+        ]
+      }
+    },
+    {
+      "id": "FND-C14",
+      "domain": "okf-roundtrip",
+      "fixture": "case-FND-C14.json",
+      "origin": {
+        "file": "test/knowledge-format.test.mjs",
+        "test": "preserves unknown metadata, unknown node types, and body through serialization"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "knowledge-links",
+        "markdown": "[note](knowledge/note.okf)",
+        "knownPaths": [
+          "knowledge/note.okf"
+        ]
+      }
+    },
+    {
+      "id": "FND-C15",
+      "domain": "okf-roundtrip",
+      "fixture": "case-FND-C15.json",
+      "origin": {
+        "file": "test/knowledge-export.test.mjs",
+        "test": "relative Markdown links and assets remain valid after relocating export"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "knowledge-links",
+        "markdown": "[note](knowledge/note.okf)",
+        "knownPaths": [
+          "knowledge/note.okf"
+        ]
+      }
+    },
+    {
+      "id": "FND-C16",
+      "domain": "okf-roundtrip",
+      "fixture": "case-FND-C16.json",
+      "origin": {
+        "file": "test/knowledge-format.test.mjs",
+        "test": "keeps OKF verified status independent from learner mastery"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "knowledge-links",
+        "markdown": "[note](knowledge/note.okf)",
+        "knownPaths": [
+          "knowledge/note.okf"
+        ]
+      }
+    },
+    {
+      "id": "FND-C17",
+      "domain": "source-citation",
+      "fixture": "case-FND-C17.json",
+      "origin": {
+        "file": "test/sources.test.mjs",
+        "test": "imports source bytes as a hash-addressed immutable asset with provenance"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "citation",
+        "markdown": "[[source-1#page-1]]",
+        "sourceManifest": {
+          "sources": [
+            {
+              "uid": "source-1",
+              "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "locators": [
+                "page-1"
+              ]
+            }
+          ]
+        },
+        "knowledgeIndex": {
+          "sources": [
+            {
+              "uid": "source-1",
+              "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "locators": [
+                "page-1"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "FND-C18",
+      "domain": "source-citation",
+      "fixture": "case-FND-C18.json",
+      "origin": {
+        "file": "test/sources.test.mjs",
+        "test": "a new source version preserves earlier immutable bytes and locators"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "citation",
+        "markdown": "[[source-1#page-1]]",
+        "sourceManifest": {
+          "sources": [
+            {
+              "uid": "source-1",
+              "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "locators": [
+                "page-1"
+              ]
+            }
+          ]
+        },
+        "knowledgeIndex": {
+          "sources": [
+            {
+              "uid": "source-1",
+              "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "locators": [
+                "page-1"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "FND-C19",
+      "domain": "source-citation",
+      "fixture": "case-FND-C19.json",
+      "origin": {
+        "file": "test/sources.test.mjs",
+        "test": "creates deterministic chunks at section boundaries with exact source locators"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "citation",
+        "markdown": "[[source-1#page-1]]",
+        "sourceManifest": {
+          "sources": [
+            {
+              "uid": "source-1",
+              "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "locators": [
+                "page-1"
+              ]
+            }
+          ]
+        },
+        "knowledgeIndex": {
+          "sources": [
+            {
+              "uid": "source-1",
+              "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "locators": [
+                "page-1"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "FND-C20",
+      "domain": "source-citation",
+      "fixture": "case-FND-C20.json",
+      "origin": {
+        "file": "test/sources.test.mjs",
+        "test": "rejects a receipt hash that does not match the source bytes"
+      },
+      "expectedPassed": false,
+      "assertion": {
+        "type": "citation",
+        "markdown": "[[source-1#page-1]]",
+        "sourceManifest": {
+          "sources": [
+            {
+              "uid": "source-1",
+              "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "locators": [
+                "page-1"
+              ]
+            }
+          ]
+        },
+        "knowledgeIndex": {
+          "sources": [
+            {
+              "uid": "source-1",
+              "contentHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "locators": [
+                "page-1"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "FND-C21",
+      "domain": "course-dispatch",
+      "fixture": "case-FND-C21.json",
+      "origin": {
+        "file": "test/course-dispatch.test.mjs",
+        "test": "claims one eligible lesson and returns a resumable capsule"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "workflow",
+        "steps": [
+          "check-consent",
+          "claim-lesson",
+          "persist-receipt"
+        ],
+        "requiredOrder": [
+          "check-consent",
+          "claim-lesson",
+          "persist-receipt"
+        ]
+      }
+    },
+    {
+      "id": "FND-C22",
+      "domain": "course-dispatch",
+      "fixture": "case-FND-C22.json",
+      "origin": {
+        "file": "test/course-dispatch.test.mjs",
+        "test": "replaying a committed publication returns the existing receipt"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "workflow",
+        "steps": [
+          "check-consent",
+          "claim-lesson",
+          "persist-receipt"
+        ],
+        "requiredOrder": [
+          "check-consent",
+          "claim-lesson",
+          "persist-receipt"
+        ]
+      }
+    },
+    {
+      "id": "FND-C23",
+      "domain": "course-dispatch",
+      "fixture": "case-FND-C23.json",
+      "origin": {
+        "file": "test/course-dispatch.test.mjs",
+        "test": "parallel retries of the same run publish at most one lesson"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "workflow",
+        "steps": [
+          "check-consent",
+          "claim-lesson",
+          "persist-receipt"
+        ],
+        "requiredOrder": [
+          "check-consent",
+          "claim-lesson",
+          "persist-receipt"
+        ]
+      }
+    },
+    {
+      "id": "FND-C24",
+      "domain": "course-dispatch",
+      "fixture": "case-FND-C24.json",
+      "origin": {
+        "file": "test/course-dispatch.test.mjs",
+        "test": "requires persisted assessment evidence before completing a lesson"
+      },
+      "expectedPassed": true,
+      "assertion": {
+        "type": "workflow",
+        "steps": [
+          "check-consent",
+          "claim-lesson",
+          "persist-receipt"
+        ],
+        "requiredOrder": [
+          "check-consent",
+          "claim-lesson",
+          "persist-receipt"
+        ]
+      }
+    }
+  ]
+}

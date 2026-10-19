@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://conceptloom.dev/schemas/knowledge-node.schema.json",
+  "title": "ConceptLoom Knowledge Node",
+  "type": "object",
+  "required": ["id", "path", "type", "title", "aliases", "sources", "relations", "bodyHash"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "path": { "type": "string", "minLength": 1 },
+    "type": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "aliases": { "type": "array", "items": { "type": "string" } },
+    "sources": { "type": "array" },
+    "relations": { "type": "array" },
+    "bodyHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,10 @@
+{
+  "kind": "assertion",
+  "id": "FND-C22",
+  "domain": "course-dispatch",
+  "type": "workflow",
+  "origin": {
+    "file": "test/course-dispatch.test.mjs",
+    "test": "replaying a committed publication returns the existing receipt"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "kind": "assertion",
+  "id": "FND-C20",
+  "domain": "source-citation",
+  "type": "citation",
+  "origin": {
+    "file": "test/sources.test.mjs",
+    "test": "rejects a receipt hash that does not match the source bytes"
+  }
+}

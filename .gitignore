@@ -40,6 +40,8 @@ learning-notes*.md
 materials/
 books/
 courses/
+!src/courses/
+!src/courses/**
 *.pdf
 *.epub
 *.mobi

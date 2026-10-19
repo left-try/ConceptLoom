@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ConceptLoom private exercise attempt",
+  "type": "object",
+  "required": ["schemaVersion", "attemptId", "inputHash", "exerciseUid", "exerciseRevision", "lessonUid", "response", "artifacts", "hintUsed", "status", "submittedAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "attemptId": { "type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$" },
+    "inputHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "exerciseUid": { "type": "string" },
+    "exerciseRevision": { "type": "string" },
+    "lessonUid": { "type": "string" },
+    "response": {},
+    "artifacts": { "type": "array" },
+    "hintUsed": { "type": "boolean" },
+    "confidence": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "status": { "enum": ["submitted", "assessed", "execution-unverified", "completed", "failed", "timeout"] },
+    "submittedAt": { "type": "string", "format": "date-time" },
+    "assessedAt": { "type": "string", "format": "date-time" },
+    "assessment": { "type": "object" }
+  },
+  "additionalProperties": false
+}

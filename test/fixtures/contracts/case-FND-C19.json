@@ -1,0 +1,10 @@
+{
+  "kind": "assertion",
+  "id": "FND-C19",
+  "domain": "source-citation",
+  "type": "citation",
+  "origin": {
+    "file": "test/sources.test.mjs",
+    "test": "creates deterministic chunks at section boundaries with exact source locators"
+  }
+}

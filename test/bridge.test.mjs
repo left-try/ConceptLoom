@@ -8,7 +8,7 @@ import { spawn } from "node:child_process";
 import readline from "node:readline";
 import Ajv from "ajv";
 
-const names = ["loom_frame_checkpoint", "loom_assess_checkpoint", "loom_start_notebook", "loom_add_note", "loom_save_learning_state", "loom_load_learning_state", "loom_list_due_reviews", "loom_show_relation_map", "loom_show_text_diagram", "loom_import_source", "loom_prepare_source", "loom_get_source", "loom_search_knowledge", "loom_read_knowledge", "loom_knowledge_graph", "loom_update_knowledge", "loom_export_knowledge"];
+const names = ["loom_frame_checkpoint", "loom_assess_checkpoint", "loom_start_notebook", "loom_add_note", "loom_save_learning_state", "loom_load_learning_state", "loom_list_due_reviews", "loom_show_relation_map", "loom_show_text_diagram", "loom_import_source", "loom_prepare_source", "loom_get_source", "loom_search_knowledge", "loom_read_knowledge", "loom_knowledge_graph", "loom_update_knowledge", "loom_export_knowledge", "loom_create_course", "loom_get_course", "loom_update_course", "loom_update_profile", "loom_record_course_research", "loom_propose_roadmap", "loom_approve_roadmap", "loom_propose_course_edit", "loom_export_course_projection", "loom_import_course_projection_edit", "loom_set_course_paused", "loom_draft_schedule", "loom_approve_schedule", "loom_claim_lesson", "loom_publish_lesson", "loom_complete_lesson", "loom_prepare_native_schedule", "loom_bind_native_schedule", "loom_reconcile_dispatch", "loom_create_exercise", "loom_get_exercise", "loom_submit_practice", "loom_assess_practice", "loom_open_learning_view"];
 const graph = { nodes: [{ id: "book", label: "Book", kind: "source" }, { id: "idea", label: "Atomicity", kind: "concept" }], edges: [{ from: "book", to: "idea" }] };
 
 async function fixture(t) {
@@ -58,7 +58,7 @@ async function bridge(t) {
   return { root, child, messages, closed, send, call: (name, args) => send("tools/call", { name, arguments: args }) };
 }
 
-test("registry preserves Foundation and Phase 2 tool names and validates relation-map input alternatives", async t => {
+test("registry preserves Foundation, Knowledge and Courses tool names and validates relation-map input alternatives", async t => {
   const { catalog, invoke } = await registry(await fixture(t));
   assert.deepEqual(catalog.map(tool => tool.name), names);
   assert.equal(typeof invoke, "function");
@@ -99,11 +99,11 @@ test("registry dispatch binds persistence to its supplied workspace", async t =>
   assert.deepEqual((await first.invoke("loom_list_due_reviews", { now: "2026-10-12T00:00:00Z" })).structuredContent.due, []);
 });
 
-test("MCP serves valid JSON only and preserves protocol negotiation without resources or UI", async t => {
+test("MCP serves valid JSON, registers the learning-view resource, and preserves protocol negotiation", async t => {
   const client = await bridge(t);
   const initialized = await client.send("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "fixture", version: "1" } });
   assert.equal(initialized.result.protocolVersion, "2025-06-18");
-  assert.deepEqual(initialized.result.capabilities, { tools: { listChanged: false } });
+  assert.deepEqual(initialized.result.capabilities, { tools: { listChanged: false }, resources: { listChanged: false } });
   assert.equal((await client.send("initialize", { protocolVersion: "2099-01-01" })).result.protocolVersion, "2025-06-18");
   client.child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" })}\n`);
   client.child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method: "ping" })}\n`);
@@ -114,7 +114,10 @@ test("MCP serves valid JSON only and preserves protocol negotiation without reso
   assert.equal(semantic.structuredContent.format, "mermaid");
   assert.equal((await client.call("loom_show_relation_map", { ...graph, source: "flowchart LR" })).result.isError, true);
   assert.equal((await client.call("missing", {})).result.isError, true);
-  assert.equal((await client.send("resources/list")).error.code, -32601);
+  const resources = (await client.send("resources/list")).result.resources;
+  assert.ok(resources.some(resource => resource.uri === "ui://conceptloom/learning-view.html"));
+  const ui = await client.send("resources/read", { uri: "ui://conceptloom/learning-view.html" });
+  assert.equal(ui.result.contents[0].mimeType, "text/html;profile=mcp-app");
   client.child.stdin.write("not json\n");
   client.child.stdin.end();
   assert.equal(await client.closed, 0);

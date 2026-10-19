@@ -1,0 +1,10 @@
+{
+  "kind": "assertion",
+  "id": "FND-C13",
+  "domain": "okf-roundtrip",
+  "type": "workflow",
+  "origin": {
+    "file": "test/knowledge-format.test.mjs",
+    "test": "parses a typed OKF note and derives its ID from its path"
+  }
+}

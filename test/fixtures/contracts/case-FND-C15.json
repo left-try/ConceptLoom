@@ -1,0 +1,10 @@
+{
+  "kind": "assertion",
+  "id": "FND-C15",
+  "domain": "okf-roundtrip",
+  "type": "knowledge-links",
+  "origin": {
+    "file": "test/knowledge-export.test.mjs",
+    "test": "relative Markdown links and assets remain valid after relocating export"
+  }
+}

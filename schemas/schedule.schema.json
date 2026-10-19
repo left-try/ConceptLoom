@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://conceptloom.dev/schemas/schedule.schema.json",
+  "title": "ConceptLoom Schedule Draft",
+  "type": "object",
+  "required": ["id", "host", "timezone", "cadence", "localTime", "missedRunPolicy", "progressionPolicy", "digest", "status"],
+  "properties": {
+    "id": { "type": "string" }, "host": { "type": "string" }, "timezone": { "type": "string", "minLength": 1 },
+    "cadence": { "type": "object", "required": ["kind", "interval"], "properties": { "kind": { "enum": ["daily", "weekly"] }, "interval": { "const": 1 }, "weekdays": { "type": "array", "items": { "type": "integer", "minimum": 1, "maximum": 7 } } } },
+    "localTime": { "type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$" },
+    "missedRunPolicy": { "const": "resume-next" }, "progressionPolicy": { "const": "wait-for-learner" }, "digest": { "type": "string" }, "status": { "enum": ["draft", "approved"] }
+  },
+  "additionalProperties": true
+}

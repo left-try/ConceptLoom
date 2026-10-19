@@ -1,0 +1,10 @@
+{
+  "kind": "assertion",
+  "id": "FND-C12",
+  "domain": "opf",
+  "type": "workflow",
+  "origin": {
+    "file": "test/prompts.test.mjs",
+    "test": "CRLF and bare CR keep digest and message content"
+  }
+}

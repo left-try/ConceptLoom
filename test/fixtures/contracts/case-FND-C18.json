@@ -1,0 +1,10 @@
+{
+  "kind": "assertion",
+  "id": "FND-C18",
+  "domain": "source-citation",
+  "type": "citation",
+  "origin": {
+    "file": "test/sources.test.mjs",
+    "test": "a new source version preserves earlier immutable bytes and locators"
+  }
+}

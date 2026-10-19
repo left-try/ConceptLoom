@@ -1,0 +1,10 @@
+{
+  "kind": "assertion",
+  "id": "FND-C09",
+  "domain": "state-checkpoint",
+  "type": "workflow",
+  "origin": {
+    "file": "test/progress.test.mjs",
+    "test": "updates a session atomically and increments its revision"
+  }
+}

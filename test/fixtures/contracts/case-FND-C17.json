@@ -1,0 +1,10 @@
+{
+  "kind": "assertion",
+  "id": "FND-C17",
+  "domain": "source-citation",
+  "type": "citation",
+  "origin": {
+    "file": "test/sources.test.mjs",
+    "test": "imports source bytes as a hash-addressed immutable asset with provenance"
+  }
+}

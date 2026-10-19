@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "calibration": [
+    "teach-ru-beginner-normal-lesson",
+    "teach-ru-beginner-conflicting-sources",
+    "teach-ru-beginner-resume",
+    "teach-ru-experienced-normal-lesson",
+    "teach-ru-experienced-conflicting-sources",
+    "teach-ru-experienced-resume",
+    "teach-en-beginner-normal-lesson",
+    "teach-en-beginner-conflicting-sources",
+    "teach-en-beginner-resume",
+    "teach-en-experienced-normal-lesson",
+    "teach-en-experienced-conflicting-sources",
+    "teach-en-experienced-resume"
+  ],
+  "holdout": [
+    "teach-ru-beginner-uncertain-claim",
+    "teach-ru-beginner-partial-access",
+    "teach-ru-beginner-interactive-practice",
+    "teach-ru-experienced-uncertain-claim",
+    "teach-ru-experienced-partial-access",
+    "teach-ru-experienced-interactive-practice",
+    "teach-en-beginner-uncertain-claim",
+    "teach-en-beginner-partial-access",
+    "teach-en-beginner-interactive-practice",
+    "teach-en-experienced-uncertain-claim",
+    "teach-en-experienced-partial-access",
+    "teach-en-experienced-interactive-practice"
+  ]
+}

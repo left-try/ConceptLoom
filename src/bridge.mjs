@@ -10,7 +10,7 @@ const recoveryDiagnostics = await recoverTransactions(workspace);
 for (const diagnostic of recoveryDiagnostics) process.stderr.write(`${JSON.stringify(diagnostic)}\n`);
 assertRecovery(recoveryDiagnostics);
 
-const { catalog, invoke } = createToolRegistry(workspace);
+const { catalog, invoke, listResources, readResource } = createToolRegistry(workspace);
 
 async function route(message) {
   if (!message || typeof message !== "object" || Array.isArray(message)
@@ -26,7 +26,7 @@ async function route(message) {
       id,
       result: {
         protocolVersion: PROTOCOL_VERSION,
-        capabilities: { tools: { listChanged: false } },
+        capabilities: { tools: { listChanged: false }, resources: { listChanged: false } },
         serverInfo: { name: "concept-loom", version: "1.1.0" },
         instructions: "Use loom tools with the Concept Loom coaching skill. Never expose expected checkpoint answers before the learner responds.",
       },
@@ -34,6 +34,11 @@ async function route(message) {
   }
   if (method === "ping") return { jsonrpc: "2.0", id, result: {} };
   if (method === "tools/list") return { jsonrpc: "2.0", id, result: { tools: catalog } };
+  if (method === "resources/list") return { jsonrpc: "2.0", id, result: { resources: await listResources() } };
+  if (method === "resources/read") {
+    try { return { jsonrpc: "2.0", id, result: await readResource(params.uri) }; }
+    catch (error) { return { jsonrpc: "2.0", id, error: { code: -32002, message: error instanceof Error ? error.message : String(error) } }; }
+  }
   if (method === "tools/call") {
     try {
       const result = await invoke(params.name, params.arguments || {});

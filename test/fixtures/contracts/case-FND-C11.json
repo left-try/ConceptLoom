@@ -1,0 +1,10 @@
+{
+  "kind": "assertion",
+  "id": "FND-C11",
+  "domain": "opf",
+  "type": "workflow",
+  "origin": {
+    "file": "test/prompts.test.mjs",
+    "test": "missing input fails and undeclared or non-string inputs fail"
+  }
+}

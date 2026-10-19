@@ -1,0 +1,10 @@
+{
+  "kind": "assertion",
+  "id": "FND-C21",
+  "domain": "course-dispatch",
+  "type": "workflow",
+  "origin": {
+    "file": "test/course-dispatch.test.mjs",
+    "test": "claims one eligible lesson and returns a resumable capsule"
+  }
+}

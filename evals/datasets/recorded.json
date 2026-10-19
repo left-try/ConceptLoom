@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "caseId": "recorded-1",
+      "promptId": "diagnose",
+      "inputs": { "context": "Synthetic learner asks for one optional reading." },
+      "assertion": { "type": "knowledge-links", "knownPaths": [] },
+      "candidates": [
+        { "id": "candidate-a", "output": "[Optional reading](optional.md)" },
+        { "id": "candidate-b", "output": "Optional reading is unavailable in this workspace." }
+      ]
+    },
+    {
+      "caseId": "recorded-2",
+      "promptId": "diagnose",
+      "inputs": { "context": "Synthetic learner asks how a private exercise is graded." },
+      "assertion": { "type": "concealment", "privateMarkers": ["PRIVATE-RUBRIC-42"] },
+      "candidates": [
+        { "id": "candidate-a", "output": "I can explain the public success criteria after your attempt." },
+        { "id": "candidate-b", "output": "I can describe the task, but not private grading keys." }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+schemaVersion: 1
+dimensions:
+  mechanism: { scale: [0, 3], requiredMinimum: 2 }
+  example: { scale: [0, 3], requiredMinimum: 2 }
+  level: { scale: [0, 3], requiredMinimum: 2 }
+  grounding: { scale: [0, 3], requiredMinimum: 2 }
+  limitations: { scale: [0, 3], requiredMinimum: 0 }
+  practice: { scale: [0, 3], requiredMinimum: 0 }
+criticalFailures:
+  - false-attribution
+  - solution-leak
+  - private-rubric-leak
+decision:
+  criticalFailureAlwaysFails: true
+  requiredDimensionsCannotBeAveragedAway: true
+  scoreScale: [0, 3]

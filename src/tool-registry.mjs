@@ -4,6 +4,30 @@ import { beginNotebook, addNotebookEntry } from "./notebook.mjs";
 import { listDueReviews, loadLearningState, saveLearningState } from "./progress.mjs";
 import { tools as diagramTools } from "./diagram-tools.mjs";
 import { tools as evaluationTools, captureRestoredState } from "./evaluation/capture.mjs";
+import { importSource, prepareSource } from "./sources/import.mjs";
+import { convertDocument } from "./sources/document-adapter.mjs";
+import { indexKnowledge, getKnowledgeNode, getNeighborhood } from "./knowledge/index.mjs";
+import { searchKnowledge } from "./knowledge/search.mjs";
+import { updateKnowledge } from "./knowledge/update.mjs";
+import { exportKnowledge } from "./knowledge/export.mjs";
+import fs from "node:fs/promises";
+import { resolveContainedPath } from "./storage/paths.mjs";
+import { courseTools } from "./courses/tools.mjs";
+import { practiceTools } from "./practice/tools.mjs";
+import { uiTools } from "./ui/tools.mjs";
+import { listUiResources, readUiResource } from "./ui/resources.mjs";
+
+const knowledgeCatalog = [
+  { name: "loom_import_source", description: "Import already available source bytes with access coverage and a provenance receipt.", inputSchema: { type: "object", required: ["resource", "title", "coverage", "receipt"], properties: { uid: { type: "string" }, resource: { type: "string", minLength: 1 }, title: { type: "string", minLength: 1 }, author: { type: "string" }, language: { type: "string" }, version: { type: "string" }, coverage: { enum: ["full", "partial", "summary", "metadata", "unknown"] }, content: { type: "string" }, localFile: { type: "string" }, maxAssetBytes: { type: "integer", minimum: 1 }, receipt: { type: "object", required: ["schemaVersion", "query", "openedResource", "fetchedAt", "representation", "coverage", "limitations"], properties: { schemaVersion: { const: 1 }, query: { type: "string" }, openedResource: { type: "string" }, fetchedAt: { type: "string" }, representation: { enum: ["raw", "extracted", "summary", "metadata", "unknown"] }, coverage: { enum: ["full", "partial", "summary", "metadata", "unknown"] }, limitations: { type: "array", items: { type: "string" } } } } } } },
+  { name: "loom_prepare_source", description: "Persist a derived extraction with exact source locators, or report a failed extraction.", inputSchema: { type: "object", required: ["sourceUid", "extraction"], properties: { sourceUid: { type: "string" }, extraction: { type: "object" } } } },
+  { name: "loom_get_source", description: "Read the source manifest and version history from this workspace.", inputSchema: { type: "object", required: ["sourceUid"], properties: { sourceUid: { type: "string" } } } },
+  { name: "loom_search_knowledge", description: "Search Knowledge notes and aliases; Personal results require an explicit scope.", inputSchema: { type: "object", required: ["query"], properties: { query: { type: "string", minLength: 1 }, limit: { type: "integer", minimum: 1, maximum: 200 }, cursor: { type: "string" }, scope: { enum: ["knowledge", "personal", "all"] } } } },
+  { name: "loom_read_knowledge", description: "Read one Knowledge note by bundle-relative path or stable ConceptLoom UID.", inputSchema: { type: "object", properties: { path: { type: "string" }, uid: { type: "string" } }, anyOf: [{ required: ["path"] }, { required: ["uid"] }] } },
+  { name: "loom_knowledge_graph", description: "Read bounded graph neighborhood or rebuild the local Knowledge index.", inputSchema: { type: "object", properties: { uid: { type: "string" }, depth: { type: "integer", minimum: 0, maximum: 3 }, limit: { type: "integer", minimum: 1, maximum: 200 }, includePersonal: { type: "boolean" } }, anyOf: [{ required: ["uid"] }, { required: ["includePersonal"] }] } },
+  { name: "loom_update_knowledge", description: "Update a Knowledge note with an expected content hash and generated block markers.", inputSchema: { type: "object", required: ["path", "expectedHash"], properties: { path: { type: "string" }, expectedHash: { type: "string" }, metadataPatch: { type: "object" }, blockId: { type: "string" }, generatedBody: { type: "string" } } } },
+  { name: "loom_export_knowledge", description: "Export a portable OKF or Obsidian vault bundle into a workspace destination.", inputSchema: { type: "object", required: ["format", "destination"], properties: { format: { enum: ["okf", "obsidian"] }, destination: { type: "string" }, includeAssets: { type: "boolean" }, includePersonal: { type: "boolean" } } } },
+];
+
 
 const coreCatalog = [
   {
@@ -161,10 +185,25 @@ export function createToolRegistry(root, options = {}) {
         ? { ...loaded, capture: await captureRestoredState(root, loaded.state, { host: options.host ?? "other" }) } : loaded;
     }],
     ["loom_list_due_reviews", args => listDueReviews(root, args)],
+    ["loom_import_source", args => importSource(root, args)],
+    ["loom_prepare_source", args => prepareSource(root, args)],
+    ["loom_get_source", async ({ sourceUid }) => {
+      try { const data = JSON.parse(await fs.readFile(await resolveContainedPath(root, ".concept-loom/sources/catalog.json"), "utf8")); return { source: data.sources?.[sourceUid] ?? null }; }
+      catch (error) { if (error.code === "ENOENT") return { source: null }; throw error; }
+    }],
+    ["loom_search_knowledge", args => searchKnowledge(root, args)],
+    ["loom_read_knowledge", args => getKnowledgeNode(root, args)],
+    ["loom_knowledge_graph", async args => { await indexKnowledge(root, args); return args.uid ? getNeighborhood(root, args) : indexKnowledge(root, args); }],
+    ["loom_update_knowledge", args => updateKnowledge(root, args)],
+    ["loom_export_knowledge", async args => { const result = await exportKnowledge(root, args); return { format: result.manifest.format, ...result }; }],
   ]);
   const entries = [
     ...coreCatalog.map(definition => ({ definition, invoke: handlers.get(definition.name) })),
     ...diagramTools(root),
+    ...knowledgeCatalog.map(definition => ({ definition, invoke: handlers.get(definition.name) })),
+    ...courseTools(root, { hostAdapter: options.hostAdapter }),
+    ...practiceTools(root),
+    ...uiTools(root),
     ...(options.evaluationTools === true ? evaluationTools(root) : []),
   ];
   const byName = new Map(entries.map(entry => [entry.definition.name, entry.invoke]));
@@ -175,5 +214,7 @@ export function createToolRegistry(root, options = {}) {
       if (!handler) throw new Error(`unknown tool: ${name}`);
       return textResult(await handler(args));
     },
+    async listResources() { return listUiResources(); },
+    async readResource(uri) { return readUiResource(uri); },
   };
 }

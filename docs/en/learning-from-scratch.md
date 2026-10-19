@@ -1,8 +1,24 @@
 # Learning without existing materials
 
+## Multi-session courses
+
+ConceptLoom can persist a personalized course roadmap, source provenance, learner consent, lesson dispatch and progress. Ask the learner to review and approve the exact roadmap before teaching. Scheduling is an optional host capability: obtain separate schedule consent and require a confirmed host receipt before describing a schedule as active. See the [course phase specification](../superpowers/specs/2026-10-13-conceptloom-courses.md) and [host acceptance record](../host-acceptance.md).
+
 [Documentation home](../../README.md) · [Русская версия](../ru/learning-from-scratch.md)
 
 Use this workflow when you have a subject in mind but no book, course, or syllabus.
+
+## Choose a workflow
+
+Example Codex requests:
+
+- One concept: `Use $concept-coach. Teach me database transactions so I can choose an isolation level.`
+- Multi-session course: `Use $concept-coach. Build me a course on database transactions; I can study 30 minutes on weekdays.`
+- Your own materials: `Help me learn from these notes/files: ...`
+- Resume: `Use $concept-coach to resume my last lesson.`
+- Review: `Quiz me on what I learned yesterday.`
+
+You can simply describe your goal; no special syntax is required. For a course, the coach asks about your goal, experience, and available time one question at a time, shows a roadmap, then offers a separate schedule. Mermaid appears in the conversation; the learning view may render inline when Codex supports MCP Apps. A schedule is active only after host confirmation. Otherwise, the course remains available for manual lesson dispatch.
 
 > [!WARNING]
 > This mode is best limited to **basic, widely documented concepts** for which reliable information is abundant and current AI models are generally well informed. Do not rely on material-free learning for a new or rapidly changing technology, deep real-world case studies, or the firsthand experience of practitioners. An AI has no personal human experience and cannot replace an author, teacher, or professional who actually lived through the situation being discussed. It may summarize published stories, but that does not make them its own experience or guarantee every detail is accurate. For deeper study, stronger grounding, real cases, and practitioner experience, use the [books, courses, and source materials workflow](learning-with-source-materials.md).
