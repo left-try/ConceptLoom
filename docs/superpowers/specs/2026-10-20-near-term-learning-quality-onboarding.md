@@ -21,8 +21,9 @@ Make the promised lesson duration credible and help a new learner understand wha
 2. Time estimates are planning budgets, not a minimum word count. The coach allocates time across instruction, example, learner work and review, and does not claim that learner work or a future response has already occurred.
 3. When a requested lesson is short, the coach narrows scope transparently instead of presenting a tiny overview as a full session.
 4. Administrative responses and simple clarifications remain concise; the lesson-depth rule applies to teaching sessions, not every chat response.
-5. Onboarding presents four natural-language examples: start a course, continue a course, make a note from material, and prepare/review. It explains the next action in plain language and asks only for information needed to proceed.
-6. Onboarding and study requests cannot silently approve a roadmap, activate a schedule, change course progress, or overwrite notes. Those actions use existing consent and conflict-safe update flows.
+5. Routine practice uses short answer-choice questions by default, so the learner can respond with a selection. Long typed explanations are reserved for objectives that explicitly assess explanation or production.
+6. Onboarding presents four natural-language examples: start a course, continue a course, make a note from material, and prepare/review. It explains the next action in plain language and asks only for information needed to proceed.
+7. Onboarding and study requests cannot silently approve a roadmap, activate a schedule, change course progress, or overwrite notes. Those actions use existing consent and conflict-safe update flows.
 
 ## Acceptance criteria
 
@@ -31,6 +32,7 @@ Make the promised lesson duration credible and help a new learner understand wha
 - **LQ-3 Honest duration:** Time estimates distinguish coach instruction from learner response time. The lesson does not claim a timed segment was delivered when it was only assigned.
 - **LQ-4 Evidence-based review:** Feedback refers to the learner's actual response, separates supported facts from assumptions, identifies omissions and proposes a next step. No feedback is fabricated before an answer exists.
 - **LQ-5 Concise exception:** Greetings, tool confirmations and narrow factual clarifications do not expand into full lessons.
+- **LQ-6 Low-friction practice:** A standard practice check can be answered without typing; written responses are brief and tied to an explicit learning objective.
 - **OB-1 Understandable entry:** First-use guidance includes the four supported example requests and states what Loom will do next.
 - **OB-2 Progressive questions:** The first turn asks for the learner's intended outcome; follow-ups are limited to missing inputs required for the selected workflow.
 - **OB-3 Safe actions:** Note writes, roadmap approval and schedule activation remain explicit actions; onboarding text alone never implies they occurred.

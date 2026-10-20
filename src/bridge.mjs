@@ -17,7 +17,7 @@ const courseRegistry = await createToolRegistry(workspace);
 const toolCatalog = [
   {
     name: "loom_frame_checkpoint",
-    description: "Create a concealed-answer checkpoint. Supports choice, free-recall, prediction, debugging, and transfer formats. Present only the returned public card, then assess the learner's response.",
+    description: "Create a concealed-answer checkpoint. Use single-choice by default for low-friction practice; use free-recall, prediction, debugging, or transfer when the learning objective requires it. Present only the returned public card, then assess the learner's response.",
     inputSchema: {
       type: "object",
       required: ["prompt", "rationale"],

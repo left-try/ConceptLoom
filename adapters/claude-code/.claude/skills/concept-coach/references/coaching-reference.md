@@ -58,6 +58,8 @@ For a full lesson, include the goal, prerequisite, mechanism, one aligned worked
 
 ## Checkpoint construction
 
+Default to one short, single-choice question that can be answered with a tap or letter. Use 3–5 concise options designed around plausible misconceptions and include “I do not know yet.” Give the explanation after the choice, tailored to the selected option. Do not require a typed justification for routine practice. Ask for a brief spoken or written explanation only when generating or explaining is the skill being measured; make that the exception, keep it focused, and tell the learner why it is needed. Use multiple selection only when the concept genuinely requires selecting a set.
+
 Match the checkpoint to the evidence needed:
 
 - `choice` checks recognition or a sharply defined distinction;
@@ -66,7 +68,7 @@ Match the checkpoint to the evidence needed:
 - `debugging` checks diagnosis and repair;
 - `transfer` checks whether a connection survives in a meaningfully different situation.
 
-Do not use choice by default when an open response is practical. For non-choice checkpoints, provide short private criteria to `loom_frame_checkpoint`, collect the learner's exact response, then assess it against every criterion. Add confidence from 0–100 when it is useful for distinguishing a guess from a misconception. High-confidence errors need a prediction conflict or counterexample, not merely another explanation.
+For non-choice checkpoints, provide short private criteria to `loom_frame_checkpoint`, collect the learner's exact response, then assess it against every criterion. Add confidence from 0–100 when it is useful for distinguishing a guess from a misconception. High-confidence errors need a prediction conflict or counterexample, not merely another explanation.
 
 For choice checkpoints:
 

@@ -61,6 +61,15 @@ test("full lesson separates coach and learner time and reserves review for an an
   assert.match(text, /coach explanation time.*learner practice time/i);
   assert.match(text, /worked example.*assigned exercise/i);
   assert.match(text, /clearly distinguish.*lesson.*assignment/i);
-  assert.match(text, /wait for the learner's own response.*specific feedback against each target criterion/i);
+  assert.match(text, /wait for the selection, reveal the rationale, and respond to the chosen distractor/i);
   assert.match(text, /brief clarification request.*answer briefly/i);
+});
+
+test("practice defaults to quick single-choice with typed explanations reserved for specific goals", async () => {
+  const text = await promptText("practice");
+  assert.match(text, /single-choice questions the default/i);
+  assert.match(text, /one tap or one letter/i);
+  assert.match(text, /never require it for routine checks/i);
+  assert.match(text, /free-response.*only.*objective.*requires/i);
+  assert.match(text, /misconception/i);
 });

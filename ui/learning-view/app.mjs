@@ -83,10 +83,28 @@ for (const exercise of data.exercises || []) {
   panel.append(element("h2", "", exercise.publicSpec.title || `Practice: ${exercise.kind}`));
   if (exercise.publicSpec.task) panel.append(element("p", "", exercise.publicSpec.task));
   if (exercise.publicSpec.prompt) panel.append(element("p", "", exercise.publicSpec.prompt));
-  const reasoning = element("textarea", "answer", ""); reasoning.setAttribute("aria-label", "Your answer and reasoning"); reasoning.placeholder = "Write your reasoning here…";
-  panel.append(reasoning);
+  const choiceSpec = Array.isArray(exercise.publicSpec.choices) && exercise.publicSpec.choices.length > 1 ? exercise.publicSpec.choices : null;
+  const reasoning = choiceSpec ? null : element("textarea", "answer", "");
+  if (reasoning) { reasoning.setAttribute("aria-label", "Your answer and reasoning"); reasoning.placeholder = "Write your reasoning here…"; }
+  if (reasoning) panel.append(reasoning);
   const output = element("div", "attempt-output");
-  if (Array.isArray(exercise.publicSpec.actions) && exercise.publicSpec.actions.length) {
+  if (choiceSpec) {
+    panel.append(element("p", "muted", "Choose one answer. No written explanation is required."));
+    const options = element("fieldset", "choice-options"); options.append(element("legend", "", exercise.publicSpec.prompt || "Select the best answer"));
+    for (const [index, choice] of [...choiceSpec, { key: "__gap__", label: "I don't know yet" }].entries()) {
+      const label = element("label", "choice");
+      const input = element("input", ""); input.type = "radio"; input.name = `choice-${exercise.uid}`; input.value = choice.key;
+      label.append(input, element("span", "", choice.label)); options.append(label);
+    }
+    const submit = element("button", "primary", "Submit choice"); submit.type = "button";
+    submit.addEventListener("click", () => {
+      const selected = options.querySelector("input:checked");
+      if (!selected) { output.textContent = "Select an answer, or choose ‘I don't know yet’."; return; }
+      const selectedChoice = [...choiceSpec, { key: "__gap__", label: "I don't know yet" }].find((choice) => choice.key === selected.value);
+      output.replaceChildren(element("p", "muted", "Choice recorded. The host will assess it and show the explanation."), downloadAttempt({ exerciseUid: exercise.uid, exerciseRevision: exercise.revision, response: selectedChoice.label, artifacts: [{ kind: "single-choice", selectedKey: selectedChoice.key }] }, `${exercise.uid}-attempt.json`));
+    });
+    panel.append(options, submit);
+  } else if (Array.isArray(exercise.publicSpec.actions) && exercise.publicSpec.actions.length) {
     const action = element("select", ""); action.setAttribute("aria-label", "Simulation decision");
     action.append(new Option("Choose a decision…", ""));
     for (const item of exercise.publicSpec.actions) action.append(new Option(item.label, item.id));
