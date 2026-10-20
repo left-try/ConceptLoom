@@ -98,12 +98,11 @@ export function composeCheckpoint(input, random = Math.random) {
   };
 }
 
-export function assessCheckpoint(input) {
+export function evaluateCheckpoint(input) {
   discardExpired();
   const token = cleanText(input.token, "token");
   const card = activeCards.get(token);
   if (!card) throw new Error("checkpoint token is unknown or expired");
-  activeCards.delete(token);
 
   const confidence = input.confidence === undefined ? undefined : Number(input.confidence);
   if (confidence !== undefined && (!Number.isInteger(confidence) || confidence < 0 || confidence > 100)) {
@@ -159,6 +158,17 @@ export function assessCheckpoint(input) {
     calibration: describeCalibration(accurate, confidence),
     note: typeof input.note === "string" && input.note.trim() ? input.note.trim() : undefined,
   };
+}
+
+export function consumeCheckpoint(tokenValue) {
+  const token = cleanText(tokenValue, "token");
+  activeCards.delete(token);
+}
+
+export function assessCheckpoint(input) {
+  const result = evaluateCheckpoint(input);
+  consumeCheckpoint(input.token);
+  return result;
 }
 
 function describeCalibration(accurate, confidence) {

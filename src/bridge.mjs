@@ -1,12 +1,18 @@
 #!/usr/bin/env node
 import readline from "node:readline";
-import { composeCheckpoint, assessCheckpoint } from "./checkpoints.mjs";
+import { composeCheckpoint } from "./checkpoints.mjs";
+import { assessAndPersist } from "./assessment-service.mjs";
 import { beginNotebook, addNotebookEntry } from "./notebook.mjs";
-import { prepareMermaid, prepareTextDiagram } from "./diagrams.mjs";
+import { prepareMermaid, prepareTextDiagram, renderRelationMap } from "./diagrams.mjs";
 import { listDueReviews, loadLearningState, recordCheckpointAssessment, saveLearningState } from "./progress.mjs";
+import { resolveWorkspace } from "./workspace.mjs";
+import { recoverTransactions } from "./storage/transactions.mjs";
+import { createToolRegistry } from "./tool-registry.mjs";
 
 const PROTOCOL_VERSION = "2025-06-18";
-const workspace = process.cwd();
+const workspace = resolveWorkspace();
+await recoverTransactions(workspace);
+const courseRegistry = await createToolRegistry(workspace);
 
 const toolCatalog = [
   {
@@ -55,6 +61,8 @@ const toolCatalog = [
         evidenceConcept: { type: "string", description: "Stable concept name whose evidence record this attempt updates." },
         hintUsed: { type: "boolean", default: false },
         note: { type: "string" },
+        attemptId: { type: "string", description: "Stable id reused if the assessment call must be retried." },
+        expectedRevision: { type: "integer", minimum: 1 },
       },
     },
   },
@@ -86,10 +94,10 @@ const toolCatalog = [
   },
   {
     name: "loom_save_learning_state",
-    description: "Persist the current route and exact resume point. After every learner response, call this before producing the next explanation or question. Save route approval as phase=build before teaching begins.",
+    description: "Persist the current route and exact resume point. Default patch mode preserves fields and arrays you omit. Pass expectedRevision when resuming a saved revision; use snapshot only when intentionally replacing the full state.",
     inputSchema: {
       type: "object",
-      required: ["sessionId", "topic", "goal", "phase", "nextStep"],
+      required: ["sessionId", "nextStep"],
       properties: {
         sessionId: { type: "string", description: "Stable short id, for example ja4-basics." },
         topic: { type: "string" },
@@ -118,6 +126,9 @@ const toolCatalog = [
         currentStep: { type: "string" },
         nextStep: { type: "string" },
         learnerContext: { type: "string" },
+        updateMode: { enum: ["patch", "snapshot"], default: "patch" },
+        expectedRevision: { type: "integer", minimum: 1 },
+        transactionId: { type: "string" },
       },
     },
   },
@@ -142,8 +153,11 @@ const toolCatalog = [
     description: "Prepare a Mermaid diagram to show directly in the terminal response and optionally save in the Markdown notebook. Does not create an image file.",
     inputSchema: {
       type: "object",
-      required: ["source", "label"],
-      properties: { source: { type: "string" }, label: { type: "string" } },
+      properties: {
+        source: { type: "string" }, label: { type: "string" },
+        nodes: { type: "array", items: { type: "object" } }, edges: { type: "array", items: { type: "object" } },
+        direction: { enum: ["LR", "RL", "TB", "BT"], default: "LR" }, theme: { enum: ["neutral", "light", "dark"], default: "neutral" },
+      },
     },
   },
   {
@@ -151,11 +165,15 @@ const toolCatalog = [
     description: "Prepare a compact monospace text diagram to show directly in the terminal response and optionally save in the Markdown notebook.",
     inputSchema: {
       type: "object",
-      required: ["source", "label"],
-      properties: { source: { type: "string" }, label: { type: "string" } },
+      properties: {
+        source: { type: "string" }, label: { type: "string" },
+        nodes: { type: "array", items: { type: "object" } }, edges: { type: "array", items: { type: "object" } },
+        direction: { enum: ["LR", "RL", "TB", "BT"], default: "LR" }, theme: { enum: ["neutral", "light", "dark"], default: "neutral" },
+      },
     },
   },
 ];
+toolCatalog.push(...courseRegistry.catalog.filter((tool) => tool.name.startsWith("loom_") && !toolCatalog.some((current) => current.name === tool.name)));
 
 function textResult(value) {
   return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }], structuredContent: value };
@@ -165,9 +183,7 @@ async function invokeTool(name, args) {
   switch (name) {
     case "loom_frame_checkpoint": return textResult(composeCheckpoint(args));
     case "loom_assess_checkpoint": {
-      const assessment = assessCheckpoint(args);
-      const learningState = await recordCheckpointAssessment(workspace, args, assessment);
-      return textResult({ ...assessment, learningState });
+      return textResult(await assessAndPersist(workspace, args));
     }
     case "loom_start_notebook": {
       const path = await beginNotebook(workspace, args);
@@ -180,9 +196,9 @@ async function invokeTool(name, args) {
     case "loom_save_learning_state": return textResult(await saveLearningState(workspace, args));
     case "loom_load_learning_state": return textResult(await loadLearningState(workspace, args));
     case "loom_list_due_reviews": return textResult(await listDueReviews(workspace, args));
-    case "loom_show_relation_map": return textResult(prepareMermaid(args));
+    case "loom_show_relation_map": return textResult(Array.isArray(args.nodes) ? renderRelationMap(args) : prepareMermaid(args));
     case "loom_show_text_diagram": return textResult(prepareTextDiagram(args));
-    default: throw new Error(`unknown tool: ${name}`);
+    default: return textResult(await courseRegistry.invoke(name, args));
   }
 }
 

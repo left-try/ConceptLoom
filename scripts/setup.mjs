@@ -9,12 +9,14 @@ const args = process.argv.slice(2);
 const host = args[0];
 const targetFlag = args.indexOf("--target");
 const target = resolve(targetFlag >= 0 ? args[targetFlag + 1] : process.cwd());
+const workspaceFlag = args.indexOf("--workspace");
+const workspace = resolve(workspaceFlag >= 0 ? args[workspaceFlag + 1] : target);
 const skipMcp = args.includes("--skip-mcp");
 const refresh = args.includes("--refresh");
 const allowedHosts = new Set(["codex", "claude-code", "opencode", "deepseek-harness"]);
 
-if (!allowedHosts.has(host) || (targetFlag >= 0 && !args[targetFlag + 1])) {
-  process.stderr.write("Usage: node scripts/setup.mjs <codex|claude-code|opencode|deepseek-harness> [--target PATH] [--skip-mcp] [--refresh]\n");
+if (!allowedHosts.has(host) || (targetFlag >= 0 && !args[targetFlag + 1]) || (workspaceFlag >= 0 && !args[workspaceFlag + 1])) {
+  process.stderr.write("Usage: node scripts/setup.mjs <codex|claude-code|opencode|deepseek-harness> [--target PATH] [--workspace PATH] [--skip-mcp] [--refresh]\n");
   process.exit(2);
 }
 
@@ -92,7 +94,7 @@ function registerCodexMcp() {
     );
   }
 
-  const added = runCodexMcp(["add", "concept-loom", "--", "node", serverPath]);
+  const added = runCodexMcp(["add", "concept-loom", "--", "node", serverPath, "--workspace", workspace]);
   if (added.error?.code === "ENOENT") {
     throw new Error("Codex CLI was not found on PATH. Install Codex or rerun with --skip-mcp.");
   }
@@ -132,7 +134,8 @@ async function installClaude() {
   await copyNew(join(source, ".claude", "agents"), join(target, ".claude", "agents"));
   const guidance = await installGuidance(join(source, "CLAUDE.md"), "CLAUDE.md", "CONCEPT_LOOM_CLAUDE.md");
   await materializeTemplate(join(source, ".mcp.json.template"), join(target, ".mcp.json"), {
-    __SERVER_PATH__: join(projectRoot, "src", "bridge.mjs"),
+    __SERVER_PATH__: JSON.stringify(join(projectRoot, "src", "bridge.mjs")),
+    __WORKSPACE_PATH__: JSON.stringify(workspace),
   });
   process.stdout.write(`Installed Claude Code assets in ${target}\n`);
   if (guidance !== "CLAUDE.md") process.stdout.write("Merge CONCEPT_LOOM_CLAUDE.md into your existing CLAUDE.md.\n");
@@ -150,7 +153,8 @@ async function installOpenCode() {
   await copyNew(join(source, ".opencode", "agents"), join(target, ".opencode", "agents"));
   const guidance = await installGuidance(join(source, "AGENTS.md"), "AGENTS.md", "CONCEPT_LOOM_AGENTS.md");
   await materializeTemplate(join(source, "opencode.json.template"), join(target, "opencode.json"), {
-    __SERVER_PATH__: join(projectRoot, "src", "bridge.mjs"),
+    __SERVER_PATH__: JSON.stringify(join(projectRoot, "src", "bridge.mjs")),
+    __WORKSPACE_PATH__: JSON.stringify(workspace),
   });
   process.stdout.write(`Installed OpenCode assets in ${target}\n`);
   if (guidance !== "AGENTS.md") process.stdout.write("Merge CONCEPT_LOOM_AGENTS.md into your existing AGENTS.md.\n");
@@ -168,12 +172,14 @@ async function installDeepSeekHarness() {
       await writeFile(
         patchDestination,
         (await readFile(join(source, "concept-loom.patch.yml.template"), "utf8"))
-          .replaceAll("__SERVER_PATH__", yamlSingleQuoted(join(projectRoot, "src", "bridge.mjs"))),
+          .replaceAll("__SERVER_PATH__", yamlSingleQuoted(join(projectRoot, "src", "bridge.mjs")))
+          .replaceAll("__WORKSPACE_PATH__", yamlSingleQuoted(workspace)),
         "utf8",
       );
     } else {
       await materializeTemplate(join(source, "concept-loom.patch.yml.template"), patchDestination, {
         __SERVER_PATH__: yamlSingleQuoted(join(projectRoot, "src", "bridge.mjs")),
+        __WORKSPACE_PATH__: yamlSingleQuoted(workspace),
       });
     }
   }

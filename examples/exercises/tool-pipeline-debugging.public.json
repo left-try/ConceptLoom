@@ -1,0 +1,16 @@
+{
+  "uid": "tool-pipeline-debugging",
+  "kind": "scenario",
+  "publicSpec": {
+    "title": "Debug a slow tool pipeline",
+    "task": "Requests are getting slower and the LLM budget is growing. Inspect the evidence and decide what to check next.",
+    "prompt": "Make a prediction before changing the system. Explain what evidence would confirm your diagnosis.",
+    "initialState": "request",
+    "initialView": "POST /summarize accepts a requested variant count. Backend loops once per variant.",
+    "actions": [
+      { "id": "inspect-input", "kind": "observe", "label": "Inspect the request boundary", "transitions": ["bounded-input", "unbounded-input"] },
+      { "id": "choose-control", "kind": "configure", "label": "Choose a server control", "transitions": ["server-limit", "client-warning"] },
+      { "id": "predict-effect", "kind": "explain", "label": "Predict the effect", "transitions": ["work-bounded", "work-unbounded"] }
+    ]
+  }
+}

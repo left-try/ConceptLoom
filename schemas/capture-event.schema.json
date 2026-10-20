@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Concept Loom public capture event",
+  "type": "object",
+  "required": ["schemaVersion", "eventId", "kind", "recordedAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "eventId": { "type": "string", "minLength": 1 },
+    "kind": { "enum": ["practice-assessed", "state-restored", "lesson-published", "lesson-completed"] },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "courseUid": { "type": "string" },
+    "lessonUid": { "type": "string" },
+    "attemptId": { "type": "string" },
+    "outcome": { "type": "string" },
+    "format": { "type": "string" },
+    "promptDigest": { "type": "string" },
+    "sourceRevisions": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

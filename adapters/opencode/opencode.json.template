@@ -3,7 +3,7 @@
   "mcp": {
     "concept-loom": {
       "type": "local",
-      "command": ["node", "__SERVER_PATH__"],
+      "command": ["node", __SERVER_PATH__, "--workspace", __WORKSPACE_PATH__],
       "enabled": true
     }
   },

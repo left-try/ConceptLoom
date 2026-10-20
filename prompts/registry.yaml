@@ -1,0 +1,9 @@
+format: opf-registry/1
+prompts:
+  onboard: prompts/onboard.opf.md
+  diagnose: prompts/diagnose.opf.md
+  research-course: prompts/research-course.opf.md
+  plan-course: prompts/plan-course.opf.md
+  teach-lesson: prompts/teach-lesson.opf.md
+  practice: prompts/practice.opf.md
+  resume: prompts/resume.opf.md

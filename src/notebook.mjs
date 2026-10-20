@@ -1,5 +1,6 @@
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { resolveContainedPath } from "./storage/paths.mjs";
 
 const permittedKinds = new Set(["learner", "guide", "prompt", "response", "insight", "diagram"]);
 
@@ -34,7 +35,7 @@ function blockFor(kind, body, title) {
 }
 
 export async function beginNotebook(baseDirectory, input) {
-  const destination = resolveNotebookPath(baseDirectory, input.path);
+  const destination = await resolveContainedPath(baseDirectory, input.path ?? "learning-notes.md", { create: true });
   await mkdir(dirname(destination), { recursive: true });
   const heading = typeof input.title === "string" && input.title.trim() ? input.title.trim() : "Learning session";
   const preamble = `# ${heading}\n\n_Created by Concept Loom on ${new Date().toISOString()}_\n`;
@@ -53,7 +54,7 @@ export async function beginNotebook(baseDirectory, input) {
 }
 
 export async function addNotebookEntry(baseDirectory, input) {
-  const destination = resolveNotebookPath(baseDirectory, input.path);
+  const destination = await resolveContainedPath(baseDirectory, input.path);
   const kind = String(input.kind ?? "");
   if (!permittedKinds.has(kind)) throw new Error(`kind must be one of: ${[...permittedKinds].join(", ")}`);
   await appendFile(destination, `\n${blockFor(kind, input.body, input.title)}\n`, "utf8");

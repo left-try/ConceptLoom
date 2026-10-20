@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Concept Loom evaluation result",
+  "type": "object",
+  "required": ["caseId", "status", "dimensions"],
+  "properties": {
+    "caseId": { "type": "string" },
+    "status": { "enum": ["pass", "fail", "error", "skipped"] },
+    "dimensions": { "type": "object", "additionalProperties": { "enum": ["pass", "fail", "error", "skipped"] } },
+    "diagnostics": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

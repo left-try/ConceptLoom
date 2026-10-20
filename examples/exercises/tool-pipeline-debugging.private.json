@@ -1,0 +1,8 @@
+{
+  "exerciseUid": "tool-pipeline-debugging",
+  "criteria": [
+    "Identifies the client-controlled variant count as the source of unbounded work",
+    "Chooses an enforced server-side limit or budget rather than relying on a client warning",
+    "Predicts bounded work and proposes a negative test that checks no excess backend call occurs"
+  ]
+}

@@ -8,7 +8,9 @@
 
 **Tech Stack:** Node >=20, node:test, `yaml` 2, Ajv Draft 2020-12; exact installed versions фиксируются lockfile при реализации.
 
-**Spec:** [Разделы 3, 7, 9, 10](../specs/2026-10-12-conceptloom-learning-platform-design.md); [общие constraints/contracts](2026-10-12-conceptloom-implementation.md).
+**Spec:** [Foundation phase spec](../specs/2026-10-12-conceptloom-foundation.md); [platform decisions](../specs/2026-10-12-conceptloom-learning-platform-design.md); [shared constraints/contracts](2026-10-12-conceptloom-implementation.md).
+
+**Test plan:** [Foundation test plan](2026-10-12-conceptloom-foundation-test-plan.md). Use its SDD/TDD cycle and acceptance matrix alongside the task-level red/green steps below.
 
 ## Global Constraints
 

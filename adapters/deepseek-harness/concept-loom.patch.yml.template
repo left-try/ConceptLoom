@@ -5,5 +5,5 @@
         serverName: concept-loom
         transport: stdio
         command: node
-        args: ['__SERVER_PATH__']
+        args: ['__SERVER_PATH__', '--workspace', '__WORKSPACE_PATH__']
         failOnStartupError: true

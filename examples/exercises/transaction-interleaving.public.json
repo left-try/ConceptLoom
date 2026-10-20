@@ -1,0 +1,16 @@
+{
+  "uid": "transaction-interleaving",
+  "kind": "simulation",
+  "publicSpec": {
+    "title": "Predict a transaction interleaving",
+    "task": "Two requests read and update the same record while one request can fail. Choose a safe execution policy and predict the visible result.",
+    "prompt": "Record your prediction and reasoning before selecting the next step.",
+    "initialState": "both-read",
+    "initialView": "Request A reads value 10. Request B reads the same value before either write commits.",
+    "actions": [
+      { "id": "commit-a", "kind": "choose", "label": "Commit request A", "transitions": ["a-committed", "a-rolled-back"] },
+      { "id": "commit-b", "kind": "choose", "label": "Commit request B", "transitions": ["b-committed", "serialization-conflict"] },
+      { "id": "observe-final", "kind": "observe", "label": "Inspect the final record", "transitions": ["consistent-result", "lost-update"] }
+    ]
+  }
+}

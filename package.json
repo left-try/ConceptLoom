@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node src/bridge.mjs",
     "test": "node --test",
-    "check": "node --check src/bridge.mjs && node --check src/checkpoints.mjs && node --check src/notebook.mjs && node --check src/diagrams.mjs && node --check src/progress.mjs && node --check scripts/setup.mjs",
+    "test:courses": "node --test test/courses.test.mjs test/course-prompts.test.mjs test/course-research.test.mjs test/roadmap.test.mjs test/course-approval.test.mjs test/course-dispatch.test.mjs test/host-scheduling.test.mjs test/course-tools.test.mjs test/course-stdio.test.mjs test/course-e2e.test.mjs",
+    "check": "node scripts/check-syntax.mjs",
     "verify": "npm run check && npm test"
   },
   "engines": {

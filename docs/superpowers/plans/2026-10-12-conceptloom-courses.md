@@ -8,7 +8,11 @@
 
 **Tech Stack:** Node >=20, Foundation storage/OPF/capture, Knowledge manifests/graph, host-native tools.
 
-**Spec:** [Разделы 2, 6–8](../specs/2026-10-12-conceptloom-learning-platform-design.md); [общие contracts](2026-10-12-conceptloom-implementation.md).
+**Spec:** [Courses phase spec](../specs/2026-10-13-conceptloom-courses.md); [platform decisions](../specs/2026-10-12-conceptloom-learning-platform-design.md); [shared contracts](2026-10-12-conceptloom-implementation.md).
+
+**Test plan:** [Courses test plan](2026-10-13-conceptloom-courses-test-plan.md). Use its CRS acceptance matrix, fault-injection scenarios, and host UAT checklist alongside the task-level red/green steps below.
+
+**Whole-phase suite:** All C1–C5 tests are prepared before implementation and run together with `npm run test:courses`; finish with `npm run verify` for the project regression gate.
 
 ## Global Constraints
 
@@ -30,7 +34,7 @@
 
 ### C1: Course state и диагностический профиль
 
-**Files:** Create `src/courses/model.mjs`, `src/courses/tools.mjs`, `schemas/course.schema.json`, `schemas/learner-profile.schema.json`, `test/courses.test.mjs`; Modify `src/tool-registry.mjs`, `prompts/diagnose.opf.md`.
+**Files:** Create `src/courses/model.mjs`, `src/courses/tools.mjs`, `schemas/course.schema.json`, `schemas/learner-profile.schema.json`, `test/courses.test.mjs`, `test/course-tools.test.mjs`; Modify `src/tool-registry.mjs`, `prompts/diagnose.opf.md`.
 
 **Interfaces:** Produces `createCourse(root,{uid,topic,goal,level?,preferences?})->Promise<Course>`, `patchCourse(root,{uid,expectedRevision,patch})->Promise<Course>`, `getCourse(root,{uid})->Promise<Course>`, `updateLearnerProfile(root,{expectedRevision,observations})->Promise<Profile>`. Course `{schemaVersion:1,uid,revision,status,topic,goal,diagnostic,roadmapRevision,lessons,sourceUids,approvals,scheduleBinding?,progression}`. Status enum from spec. Lesson `{uid,title,objectives:[],conceptUids:[],prerequisiteLessonUids:[],sourceBindings:[],exerciseUids:[],estimatedMinutes,status}`; status `pending|awaiting-learner|completed|blocked`. Observation `{field,value,basis:'self-report'|'assessment'|'preference',recordedAt,sourceAttemptId?}`.
 
@@ -78,7 +82,7 @@
 
 ### C5: Host scheduling integrations и cross-host acceptance
 
-**Files:** Create `src/hosts/capabilities.mjs`, `src/hosts/scheduling.mjs`, `shared/hosts/{codex,claude-code,chatgpt}-scheduling.md`, `test/host-scheduling.test.mjs`, `docs/host-acceptance.md`; Modify `src/courses/tools.mjs`, both primary host skills, `scripts/setup.mjs`, `docs/en/learning-from-scratch.md`, `docs/ru/learning-from-scratch.md`.
+**Files:** Create `src/hosts/capabilities.mjs`, `src/hosts/scheduling.mjs`, `shared/hosts/{codex,claude-code,chatgpt}-scheduling.md`, `test/host-scheduling.test.mjs`, `test/course-stdio.test.mjs`, `test/course-e2e.test.mjs`, `test/course-prompts.test.mjs`, `docs/host-acceptance.md`; Modify `src/courses/tools.mjs`, both primary host skills, `scripts/setup.mjs`, `docs/en/learning-from-scratch.md`, `docs/ru/learning-from-scratch.md`.
 
 **Interfaces:** Produces `validateCapabilities(report)->HostCapabilities`, `prepareNativeSchedule(root,{courseUid,approvalId,capabilities})->Promise<{action,lessonLaunchPrompt}>`, `bindNativeSchedule(root,{courseUid,approvalId,receipt})->Promise<Course>`, `reconcileNativePublication(root,{runId,hostChatId,outcome})->Promise<DispatchReceipt>`. Receipt `{host,nativeMethod,externalScheduleId,executionScope,timezone,startsFreshChat,workspaceRoot,createdAt}`. Capability and receipt are actual host results, not guessed universal API.
 

@@ -2,7 +2,7 @@
   "mcpServers": {
     "concept-loom": {
       "command": "node",
-      "args": ["__SERVER_PATH__"]
+      "args": [__SERVER_PATH__, "--workspace", __WORKSPACE_PATH__]
     }
   }
 }

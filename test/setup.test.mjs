@@ -41,3 +41,12 @@ test("DeepSeek Harness --skip-mcp installs only workspace guidance", async () =>
   await stat(join(target, ".dsh", "skills", "concept-coach", "SKILL.md"));
   await assert.rejects(stat(join(target, ".dsh", "concept-loom.patch.yml")), { code: "ENOENT" });
 });
+
+test("Claude MCP registration pins the selected learning workspace", async () => {
+  const target = await mkdtemp(join(tmpdir(), "concept-loom-claude-workspace-"));
+  const workspace = await mkdtemp(join(tmpdir(), "concept-loom-learning-root-"));
+  const result = spawnSync(process.execPath, [join(projectRoot, "scripts", "setup.mjs"), "claude-code", "--target", target, "--workspace", workspace], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  const config = JSON.parse(await readFile(join(target, ".mcp.json"), "utf8"));
+  assert.deepEqual(config.mcpServers["concept-loom"].args.slice(-2), ["--workspace", workspace]);
+});

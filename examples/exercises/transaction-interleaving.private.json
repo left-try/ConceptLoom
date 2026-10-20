@@ -1,0 +1,8 @@
+{
+  "exerciseUid": "transaction-interleaving",
+  "criteria": [
+    "Explains that concurrent reads can produce a lost update under weak isolation",
+    "Predicts that stronger serializable isolation may abort one conflicting transaction",
+    "Names the tradeoff between consistency guarantees and retry or contention cost"
+  ]
+}

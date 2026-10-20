@@ -64,6 +64,43 @@ test("updates a session atomically and increments its revision", async () => {
   assert.deepEqual(updated.secured, ["Step one"]);
 });
 
+test("patch preserves omitted arrays, evidence, and current lesson fields", async () => {
+  const root = await mkdtemp(join(tmpdir(), "loom-progress-"));
+  const base = {
+    sessionId: "patch", topic: "Topic", goal: "Learn", phase: "build", route: ["A", "B"],
+    secured: ["A"], gaps: ["B"], evidence: { A: { attempts: 2 } }, currentStep: "A", nextStep: "Explain B",
+  };
+  await saveLearningState(root, base);
+  const updated = await saveLearningState(root, { sessionId: "patch", phase: "transfer", nextStep: "Apply B" });
+  assert.deepEqual(updated.route, ["A", "B"]);
+  assert.deepEqual(updated.secured, ["A"]);
+  assert.deepEqual(updated.gaps, ["B"]);
+  assert.deepEqual(updated.evidence, { A: { attempts: 2 } });
+  assert.equal(updated.currentStep, "A");
+  assert.equal(updated.schemaVersion, 3);
+});
+
+test("stale expected revision does not overwrite a newer snapshot", async () => {
+  const root = await mkdtemp(join(tmpdir(), "loom-progress-"));
+  const base = { sessionId: "revision", topic: "T", goal: "G", phase: "build", nextStep: "one" };
+  await saveLearningState(root, base);
+  await saveLearningState(root, { sessionId: "revision", nextStep: "two" });
+  await assert.rejects(saveLearningState(root, { ...base, nextStep: "stale", expectedRevision: 1 }), { code: "REVISION_CONFLICT" });
+  assert.equal((await loadLearningState(root, { sessionId: "revision" })).state.nextStep, "two");
+});
+
+test("schema v2 migration retains evidence and writes a backup", async () => {
+  const root = await mkdtemp(join(tmpdir(), "loom-progress-"));
+  const directory = join(root, ".concept-loom", "sessions");
+  await import("node:fs/promises").then(({ mkdir }) => mkdir(directory, { recursive: true }));
+  const legacy = { schemaVersion: 2, sessionId: "legacy", topic: "T", goal: "G", phase: "build", nextStep: "Continue", revision: 4, evidence: { A: { attempts: 3 } } };
+  await import("node:fs/promises").then(({ writeFile }) => writeFile(join(directory, "legacy.json"), JSON.stringify(legacy)));
+  const restored = await loadLearningState(root, { sessionId: "legacy" });
+  assert.equal(restored.state.schemaVersion, 3);
+  assert.deepEqual(restored.state.evidence, legacy.evidence);
+  assert.equal(JSON.parse(await readFile(join(root, ".concept-loom", "backups", "legacy.schema-2.json"), "utf8")).revision, 4);
+});
+
 test("records checkpoint outcome before the lesson continues", async () => {
   const root = await mkdtemp(join(tmpdir(), "loom-progress-"));
   await saveLearningState(root, {
